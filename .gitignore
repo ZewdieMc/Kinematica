@@ -1,0 +1,13 @@
+# Build output (Electron installers)
+dist/
+
+# Dependencies
+node_modules/
+
+# Logs & caches
+*.log
+npm-debug.log*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db

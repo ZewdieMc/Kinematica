@@ -1,0 +1,1643 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Kinematica — Robotics Math, Made Visible</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0e16; --panel:#0f1622; --elev:#141d2b; --line:#1f2b3e;
+    --grid:rgba(120,150,190,0.12);
+    --text:#e7edf6; --dim:#8a9bb3; --faint:#566479;
+    --x:#ff5566; --y:#3ddc84; --z:#4d8cff;
+    --accent:#ffb454; --accent2:#2dd4d4;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+    --disp:'Space Grotesk','Segoe UI',system-ui,sans-serif;
+    --body:'Inter','Segoe UI',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 700px at 80% -10%, rgba(45,212,212,0.06), transparent 60%),
+      radial-gradient(900px 600px at -5% 110%, rgba(255,180,84,0.05), transparent 55%),
+      var(--bg);
+    color:var(--text); font-family:var(--body);
+    -webkit-font-smoothing:antialiased; overflow:hidden;
+  }
+  .app{display:flex; flex-direction:column; height:100vh; height:100dvh}
+
+  /* header */
+  .topbar{display:flex; align-items:baseline; gap:18px; padding:14px 22px 12px;
+    border-bottom:1px solid var(--line); flex:0 0 auto}
+  .brand{font-family:var(--disp); font-weight:700; font-size:21px; letter-spacing:.14em;
+    text-transform:uppercase; display:flex; align-items:center; gap:11px}
+  .brand .mark{width:13px;height:13px;border-radius:2px;
+    background:linear-gradient(135deg,var(--x),var(--accent)); box-shadow:0 0 14px rgba(255,180,84,.5);
+    transform:rotate(45deg)}
+  .tag{font-family:var(--mono); font-size:11.5px; color:var(--faint); letter-spacing:.05em}
+  .topbar .seq{margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--faint)}
+
+  /* nav */
+  .nav{display:flex; gap:6px; padding:10px 18px; border-bottom:1px solid var(--line);
+    overflow-x:auto; flex:0 0 auto; scrollbar-width:thin}
+  .nav button{appearance:none; border:1px solid var(--line); background:var(--panel);
+    color:var(--dim); font-family:var(--disp); font-weight:500; font-size:13px;
+    padding:8px 13px; border-radius:8px; cursor:pointer; white-space:nowrap;
+    display:flex; gap:9px; align-items:center; transition:.15s}
+  .nav button .n{font-family:var(--mono); font-size:11px; color:var(--faint)}
+  .nav button:hover{border-color:#314358; color:var(--text)}
+  .nav button[aria-current="true"]{background:var(--elev); color:var(--text);
+    border-color:var(--accent); box-shadow:0 0 0 1px rgba(255,180,84,.25), 0 6px 20px rgba(0,0,0,.3)}
+  .nav button[aria-current="true"] .n{color:var(--accent)}
+
+  /* main */
+  .main{flex:1 1 auto; display:grid; grid-template-columns:1fr 440px; min-height:0}
+  .stage{position:relative; min-width:0; min-height:0}
+  canvas{display:block; width:100%; height:100%; touch-action:none; cursor:grab}
+  canvas.dragging{cursor:grabbing}
+  .hint{position:absolute; left:16px; bottom:14px; font-family:var(--mono);
+    font-size:11px; color:var(--faint); background:rgba(10,14,22,.6); padding:5px 9px;
+    border-radius:6px; border:1px solid var(--line); pointer-events:none; max-width:60%}
+
+  .side{border-left:1px solid var(--line); background:linear-gradient(180deg,var(--panel),#0c121c);
+    display:flex; flex-direction:column; min-height:0; overflow-y:auto}
+  .sec{padding:16px 18px; border-bottom:1px solid var(--line)}
+  .sec h2{font-family:var(--disp); font-weight:600; font-size:12px; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--faint); margin:0 0 12px}
+  .blurb{font-size:13.5px; line-height:1.62; color:var(--dim)}
+  .blurb b{color:var(--text); font-weight:600}
+  .blurb .k{font-family:var(--mono); color:var(--accent2); font-size:.92em}
+
+  /* controls */
+  .ctrl{margin-bottom:14px}
+  .ctrl:last-child{margin-bottom:0}
+  .ctrl .lab{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:6px}
+  .ctrl .lab span:first-child{color:var(--dim)}
+  .ctrl .lab .val{font-family:var(--mono); color:var(--text)}
+  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:4px;
+    background:var(--line); border-radius:3px; outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:16px; height:16px;
+    border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid #1a2433;
+    box-shadow:0 0 8px rgba(255,180,84,.5)}
+  input[type=range]::-moz-range-thumb{width:16px; height:16px; border-radius:50%;
+    background:var(--accent); cursor:pointer; border:2px solid #1a2433}
+  input[type=range].ax-x::-webkit-slider-thumb{background:var(--x); box-shadow:0 0 8px rgba(255,85,102,.5)}
+  input[type=range].ax-y::-webkit-slider-thumb{background:var(--y); box-shadow:0 0 8px rgba(61,220,132,.5)}
+  input[type=range].ax-z::-webkit-slider-thumb{background:var(--z); box-shadow:0 0 8px rgba(77,140,255,.5)}
+
+  .chips{display:flex; flex-wrap:wrap; gap:6px}
+  .chip{border:1px solid var(--line); background:var(--elev); color:var(--dim);
+    font-family:var(--mono); font-size:11.5px; padding:6px 10px; border-radius:6px; cursor:pointer; transition:.13s}
+  .chip:hover{border-color:#39506b; color:var(--text)}
+  .chip.on{border-color:var(--accent2); color:var(--accent2)}
+  .toggle{display:flex; align-items:center; gap:9px; cursor:pointer; font-size:13px; color:var(--dim); user-select:none}
+  .toggle input{accent-color:var(--accent)}
+
+  /* readout */
+  .readout{font-family:var(--mono); font-size:12.5px; line-height:1.5}
+  .rline{display:flex; justify-content:space-between; gap:10px; padding:3px 0; color:var(--dim)}
+  .rline .v{color:var(--text)}
+  .rline .v.x{color:var(--x)} .rline .v.y{color:var(--y)} .rline .v.z{color:var(--z)}
+  .rline .v.acc{color:var(--accent)} .rline .v.acc2{color:var(--accent2)}
+  .matrix{display:inline-grid; gap:2px 14px; font-family:var(--mono); font-size:12px;
+    padding:8px 14px; border-left:2px solid var(--accent); background:rgba(255,180,84,.05);
+    border-radius:0 6px 6px 0; margin-top:6px; color:var(--text)}
+  .matrix span{text-align:right; min-width:46px}
+  /* bracketed matrices / vectors, rendered as real grids with [ ] brackets */
+  .mateq{display:inline-flex; align-items:stretch; gap:1px; margin:5px 0 2px; vertical-align:middle}
+  .mateq .brk{width:6px; border:1.5px solid var(--accent)}
+  .mateq .brk.l{border-right:none; border-radius:4px 0 0 4px}
+  .mateq .brk.r{border-left:none; border-radius:0 4px 4px 0}
+  .mgrid{display:inline-grid; gap:3px 16px; font-family:var(--mono); font-size:12px;
+    padding:5px 9px; color:var(--text)}
+  .mgrid span{text-align:right; min-width:40px}
+  /* leading super/subscript prescript, e.g. {}^A_B T */
+  .ps{display:inline-block; position:relative; width:.62em; height:1em; vertical-align:-.15em}
+  .ps .u{position:absolute; left:0; top:-.18em; font-size:.6em; line-height:1; color:var(--accent)}
+  .ps .d{position:absolute; left:0; bottom:-.18em; font-size:.6em; line-height:1; color:var(--accent2)}
+  .verdict{margin-top:10px; font-family:var(--mono); font-size:12px; padding:8px 11px;
+    border-radius:7px; line-height:1.45}
+  .verdict.ok{background:rgba(61,220,132,.1); color:#7ef0ad; border:1px solid rgba(61,220,132,.25)}
+  .verdict.warn{background:rgba(255,180,84,.1); color:var(--accent); border:1px solid rgba(255,180,84,.28)}
+  .verdict.bad{background:rgba(255,85,102,.1); color:#ff8a96; border:1px solid rgba(255,85,102,.3)}
+
+  .legend{display:flex; flex-wrap:wrap; gap:10px 16px; font-family:var(--mono); font-size:11.5px; color:var(--dim)}
+  .legend i{display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:6px; vertical-align:-1px}
+
+  @media (max-width:980px){
+    .main{grid-template-columns:1fr; grid-template-rows:minmax(280px,46vh) 1fr}
+    .side{border-left:none; border-top:1px solid var(--line)}
+    .hint{max-width:80%}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand"><span class="mark"></span>Kinematica</div>
+    <div class="tag">// robotics math, made visible</div>
+    <div class="seq" id="seqLabel"></div>
+  </div>
+  <nav class="nav" id="nav"></nav>
+  <div class="main">
+    <div class="stage">
+      <canvas id="cv"></canvas>
+      <div class="hint" id="hint"></div>
+    </div>
+    <aside class="side">
+      <div class="sec">
+        <h2 id="modTitle">—</h2>
+        <div class="blurb" id="modBlurb"></div>
+      </div>
+      <div class="sec">
+        <h2>Controls</h2>
+        <div id="controls"></div>
+      </div>
+      <div class="sec">
+        <h2>Live Math</h2>
+        <div class="readout" id="readout"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ============================ tiny math ============================ */
+const V = {
+  add:(a,b)=>a.map((v,i)=>v+b[i]),
+  sub:(a,b)=>a.map((v,i)=>v-b[i]),
+  scale:(a,s)=>a.map(v=>v*s),
+  dot:(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),
+  cross:(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]],
+  len:a=>Math.hypot(...a),
+  norm:a=>{const l=V.len(a)||1; return a.map(v=>v/l)},
+};
+const rad = d=>d*Math.PI/180, deg = r=>r*180/Math.PI;
+const fmt = (n,p=2)=>{ if(Math.abs(n)<1e-9)n=0; return n.toFixed(p); };
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+
+/* ===================== canvas + camera setup ====================== */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  const r = cv.getBoundingClientRect();
+  W=r.width; H=r.height;
+  cv.width=W*DPR; cv.height=H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize',resize);
+
+/* shared 3D orbit camera (Z-up world, robotics convention) */
+const cam = { theta:rad(38), phi:rad(26), dist:8.2 };
+const FOCAL = 2.15;
+function project(p){
+  const cp=Math.cos(cam.phi), sp=Math.sin(cam.phi), ct=Math.cos(cam.theta), st=Math.sin(cam.theta);
+  const dir=[cp*ct, cp*st, sp];                 // target -> camera
+  const camPos=[dir[0]*cam.dist, dir[1]*cam.dist, dir[2]*cam.dist];
+  const fwd=[-dir[0],-dir[1],-dir[2]];          // camera -> target
+  let right=V.norm(V.cross(fwd,[0,0,1]));
+  if(!isFinite(right[0])) right=[1,0,0];
+  const up=V.cross(right,fwd);
+  const rel=V.sub(p,camPos);
+  const xc=V.dot(rel,right), yc=V.dot(rel,up), zc=V.dot(rel,fwd);
+  const s=Math.min(W,H)*0.5;
+  const vis=zc>0.05;
+  return { x:W/2 + (xc/Math.max(zc,0.05))*s*FOCAL, y:H/2 - (yc/Math.max(zc,0.05))*s*FOCAL, depth:zc, vis };
+}
+
+/* ========================= draw helpers =========================== */
+function line2(a,b,color,w=1.5,dash){
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=w;
+  if(dash)ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); ctx.restore();
+}
+function arrowHead2(from,to,color,size=11){
+  const ang=Math.atan2(to.y-from.y,to.x-from.x);
+  ctx.save(); ctx.fillStyle=color; ctx.translate(to.x,to.y); ctx.rotate(ang);
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-size,-size*0.42); ctx.lineTo(-size,size*0.42);
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function arrow3(a,b,color,w=2.6,label){
+  const A=project(a),B=project(b);
+  if(!A.vis||!B.vis)return;
+  line2(A,B,color,w);
+  arrowHead2(A,B,color,12);
+  if(label){ ctx.save(); ctx.fillStyle=color; ctx.font='600 13px "Space Grotesk", sans-serif';
+    ctx.fillText(label, B.x+8, B.y-6); ctx.restore(); }
+}
+function label3(p,text,color,dx=8,dy=-6){
+  const P=project(p); if(!P.vis)return;
+  ctx.save(); ctx.fillStyle=color; ctx.font='600 12px "Space Grotesk", sans-serif';
+  ctx.fillText(text,P.x+dx,P.y+dy); ctx.restore();
+}
+function ring3(center,axis,r,color,w=2){
+  const a=V.norm(axis);
+  const tmp=Math.abs(a[2])<0.9?[0,0,1]:[1,0,0];
+  const u=V.norm(V.cross(a,tmp)), v=V.cross(a,u);
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=w; ctx.beginPath();
+  let started=false;
+  for(let i=0;i<=72;i++){ const t=i/72*Math.PI*2, ct=Math.cos(t), st=Math.sin(t);
+    const p=[center[0]+r*(ct*u[0]+st*v[0]), center[1]+r*(ct*u[1]+st*v[1]), center[2]+r*(ct*u[2]+st*v[2])];
+    const P=project(p); if(!P.vis){started=false;continue;}
+    if(started)ctx.lineTo(P.x,P.y); else {ctx.moveTo(P.x,P.y);started=true;} }
+  ctx.stroke(); ctx.restore();
+}
+function grid3(G=4,step=1){
+  for(let i=-G;i<=G;i+=step){
+    const c=(i===0)?'rgba(120,150,190,0.28)':'rgba(120,150,190,0.12)';
+    const a1=project([i,-G,0]),b1=project([i,G,0]);
+    if(a1.vis&&b1.vis)line2(a1,b1,c,1);
+    const a2=project([-G,i,0]),b2=project([G,i,0]);
+    if(a2.vis&&b2.vis)line2(a2,b2,c,1);
+  }
+}
+function axes3(L=3.4){
+  arrow3([0,0,0],[L,0,0],getC('--x'),2,'X');
+  arrow3([0,0,0],[0,L,0],getC('--y'),2,'Y');
+  arrow3([0,0,0],[0,0,L],getC('--z'),2,'Z');
+}
+const getC=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* world<->screen for 2D modules (origin centered, y up) */
+let PPU=70; // pixels per unit, recomputed
+function w2s(x,y){ return {x:W/2 + x*PPU, y:H/2 - y*PPU}; }
+function s2w(px,py){ return [(px-W/2)/PPU, (H/2-py)/PPU]; }
+function grid2(){
+  const ux=Math.ceil((W/2)/PPU), uy=Math.ceil((H/2)/PPU);
+  ctx.lineWidth=1;
+  for(let i=-ux;i<=ux;i++){ const a=w2s(i,-uy),b=w2s(i,uy);
+    ctx.strokeStyle=(i===0)?'rgba(120,150,190,0.32)':'rgba(120,150,190,0.10)';
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke(); }
+  for(let j=-uy;j<=uy;j++){ const a=w2s(-ux,j),b=w2s(ux,j);
+    ctx.strokeStyle=(j===0)?'rgba(120,150,190,0.32)':'rgba(120,150,190,0.10)';
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke(); }
+}
+function arrow2w(x0,y0,x1,y1,color,w=2.6,label){
+  const A=w2s(x0,y0),B=w2s(x1,y1);
+  line2(A,B,color,w); arrowHead2(A,B,color,11);
+  if(label){ctx.save();ctx.fillStyle=color;ctx.font='600 13px "Space Grotesk", sans-serif';
+    ctx.fillText(label,B.x+8,B.y-6);ctx.restore();}
+}
+function dot2w(x,y,color,r=5){ const P=w2s(x,y); ctx.save();ctx.fillStyle=color;
+  ctx.beginPath();ctx.arc(P.x,P.y,r,0,7);ctx.fill();ctx.restore(); }
+
+/* 2x2 eig/ helpers */
+function eig2(a,b,c,d){
+  const tr=a+d, det=a*d-b*c, disc=tr*tr-4*det;
+  if(disc< -1e-9) return {real:false, det, tr, disc};
+  const s=Math.sqrt(Math.max(disc,0));
+  const l1=(tr+s)/2, l2=(tr-s)/2;
+  const ev=l=>{ // (A-lI)v=0
+    let v=[b, l-a]; if(V.len(v)<1e-6) v=[l-d, c]; if(V.len(v)<1e-6) v=[1,0];
+    const n=V.len([v[0],v[1]]); return [v[0]/n, v[1]/n];
+  };
+  return {real:true, l1, l2, v1:ev(l1), v2:ev(l2), det, tr, disc};
+}
+/* eigen of symmetric 2x2 [[a,b],[b,d]] -> always real */
+function eigSym(a,b,d){
+  const tr=a+d, det=a*d-b*b, s=Math.sqrt(Math.max((a-d)*(a-d)+4*b*b,0));
+  const l1=(tr+s)/2, l2=(tr-s)/2;
+  let v1; if(Math.abs(b)>1e-9) v1=V.norm([l1-d,b]); else v1=(a>=d)?[1,0]:[0,1];
+  const v2=[-v1[1],v1[0]];
+  return {l1,l2,v1,v2};
+}
+/* rotation matrix -> unit quaternion (w,x,y,z), w>=0 */
+function matToQuat(R){
+  const tr=R[0][0]+R[1][1]+R[2][2]; let w,x,y,z;
+  if(tr>0){const s=Math.sqrt(tr+1)*2; w=0.25*s; x=(R[2][1]-R[1][2])/s; y=(R[0][2]-R[2][0])/s; z=(R[1][0]-R[0][1])/s;}
+  else if(R[0][0]>R[1][1]&&R[0][0]>R[2][2]){const s=Math.sqrt(1+R[0][0]-R[1][1]-R[2][2])*2; w=(R[2][1]-R[1][2])/s; x=0.25*s; y=(R[0][1]+R[1][0])/s; z=(R[0][2]+R[2][0])/s;}
+  else if(R[1][1]>R[2][2]){const s=Math.sqrt(1+R[1][1]-R[0][0]-R[2][2])*2; w=(R[0][2]-R[2][0])/s; x=(R[0][1]+R[1][0])/s; y=0.25*s; z=(R[1][2]+R[2][1])/s;}
+  else{const s=Math.sqrt(1+R[2][2]-R[0][0]-R[1][1])*2; w=(R[1][0]-R[0][1])/s; x=(R[0][2]+R[2][0])/s; y=(R[1][2]+R[2][1])/s; z=0.25*s;}
+  if(w<0){w=-w;x=-x;y=-y;z=-z;}
+  return [w,x,y,z];
+}
+
+/* ----- 4x4 homogeneous transforms (used by Forward Kinematics / DH) ----- */
+function mat4identity(){return [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]];}
+function mat4mul(A,B){
+  const C=[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,1]];
+  for(let i=0;i<4;i++)for(let j=0;j<4;j++){let s=0;for(let k=0;k<4;k++)s+=A[i][k]*B[k][j];C[i][j]=s;}
+  return C;
+}
+/* Denavit–Hartenberg link transform: Rz(θ)·Tz(d)·Tx(a)·Rx(α) */
+function dhMat(theta,d,a,alpha){
+  const ct=Math.cos(theta),st=Math.sin(theta),ca=Math.cos(alpha),sa=Math.sin(alpha);
+  return [
+    [ct,-st*ca, st*sa, a*ct],
+    [st, ct*ca,-ct*sa, a*st],
+    [0,  sa,    ca,    d   ],
+    [0,  0,     0,     1   ]
+  ];
+}
+function mat4origin(M){return [M[0][3],M[1][3],M[2][3]];}      // translation column
+function mat4axis(M,k){return [M[0][k],M[1][k],M[2][k]];}      // direction of local axis k
+
+/* draw a little 2D coordinate frame (red x / green y) at a point */
+function frameAxes2(p,ang,s=0.45,w=2){
+  const c=Math.cos(ang),si=Math.sin(ang);
+  arrow2w(p[0],p[1],p[0]+c*s,p[1]+si*s,getC('--x'),w);
+  arrow2w(p[0],p[1],p[0]-si*s,p[1]+c*s,getC('--y'),w);
+}
+
+/* ============================ MODULES ============================= */
+let reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const modules = {};
+
+/* -- shared control builders -- */
+const C = document.getElementById('controls');
+function slider(label,min,max,val,step,axis,onInput,fmtv){
+  const wrap=document.createElement('div'); wrap.className='ctrl';
+  const lab=document.createElement('div'); lab.className='lab';
+  const name=document.createElement('span'); name.textContent=label;
+  const v=document.createElement('span'); v.className='val';
+  lab.append(name,v); wrap.append(lab);
+  const inp=document.createElement('input'); inp.type='range';
+  inp.min=min; inp.max=max; inp.step=step; inp.value=val;
+  if(axis)inp.className='ax-'+axis;
+  const show=x=> v.textContent=(fmtv?fmtv(x):fmt(+x));
+  show(val);
+  inp.addEventListener('input',()=>{ show(inp.value); onInput(+inp.value); });
+  wrap.append(inp); C.append(wrap);
+  return inp;
+}
+function chips(label,opts,onPick){
+  const wrap=document.createElement('div'); wrap.className='ctrl';
+  if(label){const l=document.createElement('div');l.className='lab';
+    l.innerHTML='<span>'+label+'</span>';wrap.append(l);}
+  const row=document.createElement('div'); row.className='chips';
+  opts.forEach(o=>{ const b=document.createElement('button'); b.className='chip';
+    b.textContent=o.label; b.onclick=()=>onPick(o.value,b,row); row.append(b); });
+  wrap.append(row); C.append(wrap); return row;
+}
+function toggle(label,val,onChange){
+  const wrap=document.createElement('div'); wrap.className='ctrl';
+  const l=document.createElement('label'); l.className='toggle';
+  const inp=document.createElement('input'); inp.type='checkbox'; inp.checked=val;
+  inp.addEventListener('change',()=>onChange(inp.checked));
+  l.append(inp); l.append(document.createTextNode(' '+label)); wrap.append(l); C.append(wrap);
+  return inp;
+}
+const RO = document.getElementById('readout');
+
+/* ---------- 01 VECTORS ---------- */
+modules.vectors = {
+  title:'Vectors', is3D:true,
+  blurb:`A vector is a <b>length and a direction</b> — the alphabet of robotics, used to describe positions, velocities, forces, and the axes of every coordinate frame (Appendix B). Set two vectors <span class="k">a</span> and <span class="k">b</span>: they <b>add tip-to-tail</b> to form the diagonal of a parallelogram, the difference <span class="k">a−b</span> is the arrow from one tip to the other, and <b>scaling</b> by <span class="k">k</span> stretches a vector along its own line — flipping it when <span class="k">k</span> is negative. The length <span class="k">|a| = √(aₓ²+a_y²+a_z²)</span> is the vector's magnitude. Drag the viewport to orbit.`,
+  hint:'Drag to orbit. Sliders set each component.',
+  s:{a:[2.5,1,0.5], b:[0.5,2,2], k:1, show:{sum:true,diff:false}},
+  controls(){
+    const S=this.s; const axn=['x','y','z'];
+    ['a','b'].forEach(name=>{
+      S[name].forEach((v,i)=>slider(name+'.'+axn[i],-3,3,v,0.1,axn[i],x=>S[name][i]=x));
+    });
+    slider('scale k',-2,2,S.k,0.1,null,x=>S.k=x);
+    chips('show',[{label:'a + b',value:'sum'},{label:'a − b',value:'diff'},{label:'k·a',value:'ka'}],
+      (val,b)=>{S.show[val]=!S.show[val]; b.classList.toggle('on',S.show[val]);})
+      .querySelectorAll('.chip').forEach(c=>{ if((c.textContent==='a + b'&&S.show.sum))c.classList.add('on'); });
+  },
+  draw(){
+    grid3();axes3();
+    const S=this.s, O=[0,0,0];
+    arrow3(O,S.a,getC('--accent2'),3,'a');
+    arrow3(O,S.b,getC('--y'),3,'b');
+    if(S.show.sum){ const sum=V.add(S.a,S.b);
+      line2(project(S.a),project(sum),'rgba(255,180,84,.45)',1.4,[5,4]);
+      line2(project(S.b),project(sum),'rgba(255,180,84,.45)',1.4,[5,4]);
+      arrow3(O,sum,getC('--accent'),3,'a+b'); }
+    if(S.show.diff){ const d=V.sub(S.a,S.b); arrow3(S.b,S.a,getC('--x'),2.4,'a−b'); }
+    if(S.show.ka){ arrow3(O,V.scale(S.a,S.k),'rgba(45,212,212,.55)',2.4,'k·a'); }
+    const sum=V.add(S.a,S.b);
+    RO.innerHTML =
+      ro('|a|',V.len(S.a).toFixed(2),'acc2')+
+      ro('|b|',V.len(S.b).toFixed(2),'y')+
+      ro('a+b','['+sum.map(n=>fmt(n)).join(', ')+']','acc')+
+      ro('k·|a|',(S.k*V.len(S.a)).toFixed(2),'acc2');
+  }
+};
+
+/* ---------- 02 DOT PRODUCT ---------- */
+modules.dot = {
+  title:'Dot Product', is3D:true,
+  blurb:`The dot product <span class="k">a·b = Σ aᵢbᵢ = |a||b|cos θ</span> measures <b>alignment</b> (Appendix B.1). Geometrically it is the length of <b>b's shadow</b> (its projection) onto a, times |a|. Positive means the vectors roughly agree, <b>zero means perpendicular</b>, negative means they oppose. Robots use it constantly — for mechanical work, for the angle between two directions, and to <b>build rotation matrices</b>: each entry of a frame's rotation matrix is the dot product of one frame's unit axis with another's, i.e. the cosine of the angle between them (Ch. 2.4).`,
+  hint:'Drag to orbit. Rotate b past 90° to flip the sign.',
+  s:{a:[3,0,0], by:60, bz:0, blen:2.6},
+  controls(){
+    const S=this.s;
+    slider('a.x',0.5,3.5,S.a[0],0.1,'x',x=>S.a[0]=x);
+    slider('b angle (in XY)',0,180,S.by,1,'y',x=>S.by=x,x=>x+'°');
+    slider('b tilt (toward Z)',-80,80,S.bz,1,'z',x=>S.bz=x,x=>x+'°');
+    slider('|b|',1,3.2,S.blen,0.1,null,x=>S.blen=x);
+  },
+  bvec(){const S=this.s;const az=rad(S.by),el=rad(S.bz);
+    return [S.blen*Math.cos(el)*Math.cos(az),S.blen*Math.cos(el)*Math.sin(az),S.blen*Math.sin(el)];},
+  draw(){
+    grid3();axes3();
+    const S=this.s,O=[0,0,0],a=S.a,b=this.bvec();
+    const ah=V.norm(a), proj=V.dot(b,ah), foot=V.scale(ah,proj);
+    arrow3(O,a,getC('--accent2'),3,'a');
+    arrow3(O,b,getC('--y'),3,'b');
+    line2(project(b),project(foot),'rgba(255,180,84,.5)',1.6,[4,4]); // perpendicular
+    arrow3(O,foot,getC('--accent'),3.4,'proj');
+    const d=V.dot(a,b), ang=deg(Math.acos(clamp(V.dot(ah,V.norm(b)),-1,1)));
+    RO.innerHTML =
+      ro('a·b',d.toFixed(2),d>0.01?'acc':d<-0.01?'x':'')+
+      ro('|a|·|b|',(V.len(a)*V.len(b)).toFixed(2),'')+
+      ro('cos θ',Math.cos(rad(ang)).toFixed(3),'')+
+      ro('angle θ',ang.toFixed(1)+'°','y')+
+      ro('proj of b on a',proj.toFixed(2),'acc');
+    let v;
+    if(Math.abs(d)<0.06) v='<div class="verdict ok">θ ≈ 90° — vectors are perpendicular, dot product ≈ 0.</div>';
+    else if(d>0) v='<div class="verdict warn">θ &lt; 90° — vectors point the same general way (positive).</div>';
+    else v='<div class="verdict bad">θ &gt; 90° — vectors oppose each other (negative).</div>';
+    RO.innerHTML+=v;
+  }
+};
+
+/* ---------- 03 CROSS PRODUCT ---------- */
+modules.cross = {
+  title:'Cross Product', is3D:true,
+  blurb:`The cross product <span class="k">a×b</span> returns a <b>new vector perpendicular</b> to both inputs, oriented by the <b>right-hand rule</b> (Appendix B.2). Its length equals the <b>area of the parallelogram</b> they span, <span class="k">|a||b|sin θ</span>, so it is zero when the vectors are parallel. Robots use it for torque (<span class="k">τ = r×F</span>), surface normals, and angular velocity. Order matters — swap it and the result flips: <span class="k">b×a = −(a×b)</span>. This is the same right-hand convention that fixes the axis directions of every coordinate frame (Ch. 2.4).`,
+  hint:'Drag to orbit. Toggle order to see the result flip.',
+  s:{a:[2.6,0.4,0], b:[0.6,2.4,0], swap:false},
+  controls(){
+    const S=this.s;
+    slider('a.x',-3,3,S.a[0],0.1,'x',x=>S.a[0]=x);
+    slider('a.y',-3,3,S.a[1],0.1,'y',x=>S.a[1]=x);
+    slider('a.z',-3,3,S.a[2],0.1,'z',x=>S.a[2]=x);
+    slider('b.x',-3,3,S.b[0],0.1,'x',x=>S.b[0]=x);
+    slider('b.y',-3,3,S.b[1],0.1,'y',x=>S.b[1]=x);
+    slider('b.z',-3,3,S.b[2],0.1,'z',x=>S.b[2]=x);
+    chips('order',[{label:'a × b',value:0},{label:'b × a',value:1}],(val,b,row)=>{
+      S.swap=!!val; row.querySelectorAll('.chip').forEach((c,i)=>c.classList.toggle('on',i===val));
+    }).querySelectorAll('.chip')[0].classList.add('on');
+  },
+  draw(){
+    grid3();axes3();
+    const S=this.s,O=[0,0,0],a=S.a,b=S.b;
+    const c=S.swap?V.cross(b,a):V.cross(a,b);
+    // parallelogram fill
+    const p=[O,a,V.add(a,b),b].map(project);
+    if(p.every(q=>q.vis)){ ctx.save();ctx.fillStyle='rgba(255,180,84,.10)';
+      ctx.strokeStyle='rgba(255,180,84,.35)';ctx.lineWidth=1;ctx.beginPath();
+      ctx.moveTo(p[0].x,p[0].y);for(let i=1;i<4;i++)ctx.lineTo(p[i].x,p[i].y);ctx.closePath();
+      ctx.fill();ctx.stroke();ctx.restore(); }
+    arrow3(O,a,getC('--accent2'),3,'a');
+    arrow3(O,b,getC('--y'),3,'b');
+    arrow3(O,c,getC('--accent'),3.4,S.swap?'b×a':'a×b');
+    const mag=V.len(c), ang=deg(Math.asin(clamp(mag/((V.len(a)*V.len(b))||1),-1,1)));
+    RO.innerHTML =
+      ro((S.swap?'b×a':'a×b'),'['+c.map(n=>fmt(n)).join(', ')+']','acc')+
+      ro('|a×b| (area)',mag.toFixed(2),'acc')+
+      ro('|a||b|sinθ',(V.len(a)*V.len(b)*Math.sin(rad(ang))).toFixed(2),'')+
+      ro('angle θ',ang.toFixed(1)+'°','y');
+    RO.innerHTML+= mag<0.06
+      ? '<div class="verdict bad">a and b are parallel — area is zero, so a×b ≈ 0.</div>'
+      : '<div class="verdict ok">Result ⟂ to both a and b (right-hand rule).</div>';
+  }
+};
+
+/* ---------- 04 FRAMES & TRANSFORMS ---------- */
+modules.frames = {
+  title:'Frames & Transforms', is3D:true,
+  blurb:`Every robot is a stack of <b>coordinate frames</b> (Ch. 2.4). A frame {B} is a <b>rotation</b> plus a <b>translation</b> away from the world {A}, so the same physical point has different coordinates in each one. The <b>homogeneous transform</b> <span class="k">T</span> packs the 3×3 rotation matrix and the 3×1 position vector into a single 4×4 matrix (with a bottom row <span class="k">[0 0 0 1]</span>) that converts B-coordinates into A-coordinates: <span class="k"><sup>A</sup>p = ${preT('A','B')}T · <sup>B</sup>p</span>. Chaining frames is just matrix multiplication, <span class="k">${preT('A','C')}T = ${preT('A','B')}T · ${preT('B','C')}T</span> — exactly the operation the DH method uses to build forward kinematics. Because the rotation is orthonormal, the inverse is cheap: <span class="k">R<sup>−1</sup> = R<sup>T</sup></span>.`,
+  hint:'Drag to orbit. The point is fixed in space — its numbers differ per frame.',
+  s:{roll:0,pitch:25,yaw:40, t:[1.6,1.2,0.8], p:[1,0.6,0.4], anim:false, clock:0},
+  rotM(){const S=this.s;const cr=Math.cos(rad(S.roll)),sr=Math.sin(rad(S.roll));
+    const cp=Math.cos(rad(S.pitch)),sp=Math.sin(rad(S.pitch));
+    const cy=Math.cos(rad(S.yaw)),sy=Math.sin(rad(S.yaw));
+    // R = Rz(yaw) Ry(pitch) Rx(roll)
+    return [
+      [cy*cp, cy*sp*sr-sy*cr, cy*sp*cr+sy*sr],
+      [sy*cp, sy*sp*sr+cy*cr, sy*sp*cr-cy*sr],
+      [-sp,   cp*sr,          cp*cr]
+    ];},
+  apply(R,v){return [V.dot(R[0],v),V.dot(R[1],v),V.dot(R[2],v)];},
+  controls(){
+    const S=this.s;
+    slider('roll (X)',-180,180,S.roll,1,'x',x=>S.roll=x,x=>x+'°');
+    slider('pitch (Y)',-180,180,S.pitch,1,'y',x=>S.pitch=x,x=>x+'°');
+    slider('yaw (Z)',-180,180,S.yaw,1,'z',x=>S.yaw=x,x=>x+'°');
+    slider('move X',-2.5,2.5,S.t[0],0.1,'x',x=>S.t[0]=x);
+    slider('move Y',-2.5,2.5,S.t[1],0.1,'y',x=>S.t[1]=x);
+    slider('move Z',-2.5,2.5,S.t[2],0.1,'z',x=>S.t[2]=x);
+    if(!reduceMotion) toggle('spin frame {B}',S.anim,v=>S.anim=v);
+  },
+  draw(){
+    grid3();axes3();
+    const S=this.s;
+    if(S.anim){S.clock+=0.012; S.yaw=(S.yaw+0.6)%360;}
+    const R=this.rotM(), o=S.t, L=1.5;
+    // frame B axes
+    arrow3(o,V.add(o,this.apply(R,[L,0,0])),getC('--x'),2.6);
+    arrow3(o,V.add(o,this.apply(R,[0,L,0])),getC('--y'),2.6);
+    arrow3(o,V.add(o,this.apply(R,[0,0,L])),getC('--z'),2.6);
+    label3(o,'{B}',getC('--accent'),10,-8);
+    label3([0.1,0.1,0.1],'{A}','rgba(230,237,246,.7)',6,16);
+    // the point, fixed in WORLD: p_A is what we place; p_B derived
+    const pA=S.p;
+    dot2w; // noop
+    const PA=project(pA);
+    if(PA.vis){ctx.save();ctx.fillStyle=getC('--accent');ctx.beginPath();
+      ctx.arc(PA.x,PA.y,6,0,7);ctx.fill();
+      ctx.strokeStyle='rgba(255,180,84,.4)';ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle=getC('--accent');ctx.font='600 12px "Space Grotesk", sans-serif';
+      ctx.fillText('p',PA.x+9,PA.y-7);ctx.restore();}
+    line2(project([0,0,0]),PA,'rgba(255,180,84,.3)',1,[4,4]);
+    line2(project(o),PA,'rgba(255,180,84,.5)',1.2,[4,4]);
+    // p in B coords: p_B = R^T (p_A - t)
+    const rel=V.sub(pA,o);
+    const pB=[V.dot([R[0][0],R[1][0],R[2][0]],rel),
+              V.dot([R[0][1],R[1][1],R[2][1]],rel),
+              V.dot([R[0][2],R[1][2],R[2][2]],rel)];
+    RO.innerHTML =
+      '<div class="rline"><span><sup>A</sup>p &nbsp;— point in {A} (world)</span></div>'+
+      vecRow(pA,'acc')+
+      '<div class="rline" style="margin-top:6px"><span><sup>B</sup>p &nbsp;— point in {B} (local)</span></div>'+
+      vecRow(pB,'acc2')+
+      '<div class="rline" style="margin-top:8px"><span>homogeneous transform &nbsp;'+preT('A','B')+'T</span></div>'+
+      matrix4(R,o);
+  }
+};
+
+/* ---------- 05 MATRICES AS MAPS (2D) ---------- */
+modules.matrix = {
+  title:'Matrices as Maps', is2D:true,
+  blurb:`A matrix is a <b>machine that bends space</b>. Its two columns say where the basis arrows <span class="k">î</span> and <span class="k">ĵ</span> land — and every other point follows. <b>Drag the arrow tips</b> to reshape the grid. The shaded unit square becomes a parallelogram whose area is the <b>determinant</b>: how much space is scaled. A <b>negative</b> determinant means space was flipped; a <b>zero</b> determinant means it was crushed flat.<br><br>The <b>rank</b> counts how many of the columns point in genuinely independent directions — equivalently, the <b>dimension of the space the map fills</b>. <b>Rank 2</b> = the columns span the plane (det ≠ 0, invertible). <b>Rank 1</b> = the columns are parallel, so the whole plane collapses onto a <b>line</b> (det = 0). <b>Rank 0</b> = the zero matrix, mapping everything to the <b>origin</b>. Losing rank is exactly what a <b>singularity</b> is: try the <span class="k">Singular</span> preset and watch the square flatten.`,
+  hint:'Drag the red (î) and green (ĵ) arrow tips to set the matrix.',
+  s:{a:1,b:0,c:0,d:1, drag:null},
+  controls(){
+    const S=this.s;
+    chips('presets',[
+      {label:'Identity',value:[1,0,0,1]},
+      {label:'Rotate 35°',value:[Math.cos(rad(35)),-Math.sin(rad(35)),Math.sin(rad(35)),Math.cos(rad(35))]},
+      {label:'Scale 1.6',value:[1.6,0,0,1.6]},
+      {label:'Shear',value:[1,0.8,0,1]},
+      {label:'Reflect Y',value:[-1,0,0,1]},
+      {label:'Singular',value:[1,2,0.5,1]},
+    ],v=>{S.a=v[0];S.b=v[1];S.c=v[2];S.d=v[3];});
+  },
+  pointerDown(wx,wy){const S=this.s;
+    const i=[S.a,S.c],j=[S.b,S.d];
+    const di=Math.hypot(wx-i[0],wy-i[1]), dj=Math.hypot(wx-j[0],wy-j[1]);
+    if(di<0.35&&di<=dj)S.drag='i'; else if(dj<0.35)S.drag='j';},
+  pointerMove(wx,wy){const S=this.s;
+    if(S.drag==='i'){S.a=clamp(wx,-3.5,3.5);S.c=clamp(wy,-3.5,3.5);}
+    else if(S.drag==='j'){S.b=clamp(wx,-3.5,3.5);S.d=clamp(wy,-3.5,3.5);}},
+  pointerUp(){this.s.drag=null;},
+  draw(){
+    grid2();
+    const S=this.s,a=S.a,b=S.b,c=S.c,d=S.d;
+    const T=(x,y)=>[a*x+b*y, c*x+d*y];
+    // transformed grid
+    ctx.save();ctx.lineWidth=1; const N=5;
+    for(let i=-N;i<=N;i++){
+      const va=T(i,-N),vb=T(i,N),ha=T(-N,i),hb=T(N,i);
+      ctx.strokeStyle=(i===0)?'rgba(45,212,212,.5)':'rgba(45,212,212,.16)';
+      let p=w2s(va[0],va[1]),q=w2s(vb[0],vb[1]);
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();
+      ctx.strokeStyle=(i===0)?'rgba(255,180,84,.5)':'rgba(45,212,212,.16)';
+      p=w2s(ha[0],ha[1]);q=w2s(hb[0],hb[1]);
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();
+    }
+    ctx.restore();
+    // unit square -> parallelogram
+    const sq=[[0,0],[1,0],[1,1],[0,1]].map(p=>T(p[0],p[1])).map(p=>w2s(p[0],p[1]));
+    const det=a*d-b*c;
+    ctx.save();ctx.fillStyle=det<0?'rgba(255,85,102,.14)':'rgba(255,180,84,.14)';
+    ctx.beginPath();ctx.moveTo(sq[0].x,sq[0].y);for(let i=1;i<4;i++)ctx.lineTo(sq[i].x,sq[i].y);
+    ctx.closePath();ctx.fill();ctx.restore();
+    // basis arrows
+    arrow2w(0,0,a,c,getC('--x'),3,'î');
+    arrow2w(0,0,b,d,getC('--y'),3,'ĵ');
+    dot2w(a,c,getC('--x'),5); dot2w(b,d,getC('--y'),5);
+    const anyNonZero=Math.max(Math.abs(a),Math.abs(b),Math.abs(c),Math.abs(d))>0.04;
+    const rank = Math.abs(det)>0.06 ? 2 : (anyNonZero?1:0);
+    RO.innerHTML=matEq('<span>'+fmt(a)+'</span><span>'+fmt(b)+
+      '</span><span>'+fmt(c)+'</span><span>'+fmt(d)+'</span>',2)+
+      ro('det (area scale)',det.toFixed(2),det<-0.01?'x':det<0.06&&det>-0.06?'acc':'acc')+
+      ro('rank',rank+' / 2',rank<2?'x':'acc')+
+      ro('maps plane onto',rank===2?'the plane (2D)':rank===1?'a line (1D)':'a point (0D)',rank<2?'x':'acc')+
+      ro('î lands at','['+fmt(a)+', '+fmt(c)+']','x')+
+      ro('ĵ lands at','['+fmt(b)+', '+fmt(d)+']','y');
+    RO.innerHTML+= rank<2
+      ? '<div class="verdict bad">det ≈ 0 → <b>rank '+rank+'</b>: the columns are '+(rank?'parallel, so space is crushed onto a line':'both zero, so everything maps to the origin')+'. Not invertible — a singularity.</div>'
+      : det<0
+      ? '<div class="verdict warn">Full <b>rank 2</b>, but det &lt; 0 — orientation is flipped (a reflection happened).</div>'
+      : '<div class="verdict ok">Full <b>rank 2</b>: columns are independent, orientation preserved, area scaled by '+det.toFixed(2)+'×.</div>';
+  }
+};
+
+/* ---------- 06 EIGENVECTORS (2D) ---------- */
+modules.eigen = {
+  title:'Eigenvectors', is2D:true,
+  blurb:`Most vectors get <b>knocked off their line</b> when a matrix acts on them. <b>Eigenvectors</b> are the rare directions that <b>stay on their own line</b> — only stretched or squished by a factor λ, the <b>eigenvalue</b>. Watch the spinning input <span class="k">v</span> and its image <span class="k">Av</span>: when they line up, you've found an eigenvector. (A pure rotation has none — nothing keeps its direction.)`,
+  hint:'Drag to set the input vector, or let it sweep automatically.',
+  s:{a:2,b:1,c:1,d:2, ang:rad(20), auto:true, drag:false},
+  controls(){
+    const S=this.s;
+    slider('matrix a',-3,3,S.a,0.1,'x',x=>S.a=x);
+    slider('matrix b',-3,3,S.b,0.1,'y',x=>S.b=x);
+    slider('matrix c',-3,3,S.c,0.1,'x',x=>S.c=x);
+    slider('matrix d',-3,3,S.d,0.1,'y',x=>S.d=x);
+    if(!reduceMotion) toggle('auto-sweep v',S.auto,v=>S.auto=v);
+    chips('presets',[
+      {label:'Stretch',value:[2,1,1,2]},
+      {label:'Shear',value:[1,1,0,1]},
+      {label:'Rotation',value:[Math.cos(rad(40)),-Math.sin(rad(40)),Math.sin(rad(40)),Math.cos(rad(40))]},
+      {label:'Saddle',value:[2,0,0,-1]},
+    ],v=>{S.a=v[0];S.b=v[1];S.c=v[2];S.d=v[3];});
+  },
+  pointerDown(wx,wy){this.s.auto=false;this.s.drag=true;this.s.ang=Math.atan2(wy,wx);},
+  pointerMove(wx,wy){if(this.s.drag)this.s.ang=Math.atan2(wy,wx);},
+  pointerUp(){this.s.drag=false;},
+  draw(){
+    grid2();
+    const S=this.s;
+    if(S.auto&&!reduceMotion)S.ang+=0.012;
+    const a=S.a,b=S.b,c=S.c,d=S.d, R=2.2;
+    const e=eig2(a,b,c,d);
+    // eigenlines
+    if(e.real){
+      ctx.save();ctx.lineWidth=1.4;ctx.setLineDash([6,5]);
+      ctx.strokeStyle='rgba(255,180,84,.30)';
+      let p=w2s(e.v1[0]*6,e.v1[1]*6),q=w2s(-e.v1[0]*6,-e.v1[1]*6);
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();
+      ctx.strokeStyle='rgba(45,212,212,.30)';
+      p=w2s(e.v2[0]*6,e.v2[1]*6);q=w2s(-e.v2[0]*6,-e.v2[1]*6);
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();
+      ctx.restore();
+    }
+    // input v and Av
+    const v=[Math.cos(S.ang)*R,Math.sin(S.ang)*R];
+    const Av=[a*v[0]+b*v[1], c*v[0]+d*v[1]];
+    arrow2w(0,0,v[0],v[1],getC('--z'),2.8,'v');
+    arrow2w(0,0,Av[0],Av[1],getC('--accent'),2.8,'Av');
+    // alignment check
+    const vn=V.norm(v), an=V.norm([Av[0],Av[1]]);
+    const align=Math.abs(vn[0]*an[0]+vn[1]*an[1]);
+    if(align>0.985){ ctx.save();
+      const P=w2s(v[0],v[1]); ctx.fillStyle='rgba(61,220,132,.9)';
+      ctx.font='600 12px "Space Grotesk", sans-serif';ctx.fillText('★ eigen-direction',P.x+10,P.y+4);ctx.restore(); }
+    RO.innerHTML=matEq('<span>'+fmt(a)+'</span><span>'+fmt(b)+
+      '</span><span>'+fmt(c)+'</span><span>'+fmt(d)+'</span>',2);
+    if(e.real){
+      RO.innerHTML+=ro('λ₁',fmt(e.l1),'acc')+ro('eigenvector v₁','['+fmt(e.v1[0])+', '+fmt(e.v1[1])+']','acc')+
+        ro('λ₂',fmt(e.l2),'acc2')+ro('eigenvector v₂','['+fmt(e.v2[0])+', '+fmt(e.v2[1])+']','acc2')+
+        '<div class="verdict ok">Real eigenvalues — these two dashed lines stay fixed in direction; vectors on them only scale.</div>';
+    } else {
+      RO.innerHTML+=ro('eigenvalues','complex','z')+
+        '<div class="verdict warn">Complex eigenvalues — no real eigenvector. Every direction rotates (typical of a rotation matrix).</div>';
+    }
+  }
+};
+
+/* ---------- 07 SINGULARITIES (2D robot arm) ---------- */
+modules.singularity = {
+  title:'Singularities', is2D:true,
+  blurb:`The capstone — it ties together the <b>Jacobian</b>, <b>differential kinematics</b>, and <b>manipulability</b> (Ch. 3.3–4.3). The Jacobian <span class="k">J</span> holds the partial derivatives of the forward kinematics and linearly maps joint speeds to tip speed, <span class="k">ν = J·q̇</span>. The <b>manipulability ellipse</b> shows which tip directions are fast (long axis) or slow (short axis); its axes are the <b>eigenvectors of J·Jᵀ</b> and its volume is the manipulability measure <span class="k">w = √det(J·Jᵀ)</span>. When the arm <b>straightens out</b> (θ₂→0° or 180°), <span class="k">det J → 0</span> and <span class="k">w → 0</span>: the ellipse collapses to a line and the tip <b>loses a direction it can move</b> — a <b>singularity</b>. By the <b>kineto-statics duality</b> the force ellipse is the velocity ellipse turned 90°, so right at a singularity the required joint speeds — and the forces exerted — blow up. That's why singularities are avoided in practice.`,
+  hint:'Sweep θ₂ toward 0° or 180° to drive the arm into a singularity.',
+  s:{t1:35,t2:60, l1:2, l2:1.7},
+  controls(){
+    const S=this.s;
+    slider('θ₁ (base joint)',-180,180,S.t1,1,'x',x=>S.t1=x,x=>x+'°');
+    slider('θ₂ (elbow joint)',-180,180,S.t2,1,'y',x=>S.t2=x,x=>x+'°');
+    chips('try',[
+      {label:'Folded',value:[35,150]},
+      {label:'Bent',value:[35,60]},
+      {label:'Straight ⚠',value:[35,0]},
+    ],v=>{S.t1=v[0];S.t2=v[1];});
+  },
+  draw(){
+    grid2();
+    const S=this.s, t1=rad(S.t1), t2=rad(S.t2), l1=S.l1,l2=S.l2;
+    const j1=[l1*Math.cos(t1), l1*Math.sin(t1)];
+    const tip=[j1[0]+l2*Math.cos(t1+t2), j1[1]+l2*Math.sin(t1+t2)];
+    // Jacobian
+    const J=[[-l1*Math.sin(t1)-l2*Math.sin(t1+t2), -l2*Math.sin(t1+t2)],
+             [ l1*Math.cos(t1)+l2*Math.cos(t1+t2),  l2*Math.cos(t1+t2)]];
+    const detJ=J[0][0]*J[1][1]-J[0][1]*J[1][0];
+    // JJ^T symmetric
+    const m11=J[0][0]*J[0][0]+J[0][1]*J[0][1];
+    const m12=J[0][0]*J[1][0]+J[0][1]*J[1][1];
+    const m22=J[1][0]*J[1][0]+J[1][1]*J[1][1];
+    const es=eigSym(m11,m12,m22);
+    const s1=Math.sqrt(Math.max(es.l1,0)), s2=Math.sqrt(Math.max(es.l2,0));
+    // ellipse at tip
+    const scl=0.45;
+    ctx.save();
+    const Ptip=w2s(tip[0],tip[1]);
+    ctx.translate(Ptip.x,Ptip.y);
+    const phi=Math.atan2(es.v1[1],es.v1[0]);
+    ctx.rotate(-phi); // screen y is down -> negate
+    ctx.beginPath();
+    ctx.ellipse(0,0,Math.max(s1*scl*PPU,1),Math.max(s2*scl*PPU,1),0,0,7);
+    ctx.fillStyle='rgba(45,212,212,.12)';ctx.strokeStyle='rgba(45,212,212,.55)';
+    ctx.lineWidth=1.4;ctx.fill();ctx.stroke();
+    ctx.restore();
+    // workspace circle (reach) faint
+    ctx.save();ctx.strokeStyle='rgba(120,150,190,.15)';ctx.setLineDash([4,6]);
+    let o=w2s(0,0);ctx.beginPath();ctx.arc(o.x,o.y,(l1+l2)*PPU,0,7);ctx.stroke();ctx.restore();
+    // links
+    arrow2w; // noop
+    const O=w2s(0,0),J1=w2s(j1[0],j1[1]),TP=w2s(tip[0],tip[1]);
+    line2(O,J1,getC('--x'),5); line2(J1,TP,getC('--y'),5);
+    [O,J1].forEach((p,i)=>{ctx.save();ctx.fillStyle='#0a0e16';ctx.strokeStyle=i?getC('--y'):getC('--x');
+      ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fill();ctx.stroke();ctx.restore();});
+    ctx.save();ctx.fillStyle=getC('--accent');ctx.beginPath();ctx.arc(TP.x,TP.y,7,0,7);ctx.fill();
+    ctx.font='600 12px "Space Grotesk", sans-serif';ctx.fillText('tip',TP.x+11,TP.y-7);ctx.restore();
+    const manip=Math.abs(detJ);
+    RO.innerHTML=
+      ro('tip position','['+fmt(tip[0])+', '+fmt(tip[1])+']','acc')+
+      '<div class="rline"><span>Jacobian J</span></div>'+
+      matEq('<span>'+fmt(J[0][0])+'</span><span>'+fmt(J[0][1])+
+      '</span><span>'+fmt(J[1][0])+'</span><span>'+fmt(J[1][1])+'</span>',2)+
+      ro('det J',detJ.toFixed(3),Math.abs(detJ)<0.12?'x':'acc')+
+      ro('det J = l₁l₂sinθ₂',(l1*l2*Math.sin(t2)).toFixed(3),'')+
+      ro('ellipse axes (σ)',fmt(s1)+' , '+fmt(s2),'acc2')+
+      ro('manipulability w','√det(JJᵀ) = '+Math.sqrt(Math.max(s1*s1*s2*s2,0)).toFixed(3),'acc2');
+    RO.innerHTML+= manip<0.12
+      ? '<div class="verdict bad">Near singularity! Ellipse collapsed to a line — the tip can\u2019t move along the short axis. Joint speeds blow up.</div>'
+      : '<div class="verdict ok">Well-conditioned. The fatter the ellipse, the more freely the tip can move in every direction.</div>';
+  }
+};
+
+/* ---------- 08 ROTATIONS: EULER vs QUATERNION ---------- */
+modules.rotations = {
+  title:'Rotations: Euler vs Quaternion', is3D:true,
+  blurb:`Orientation has many representations (Ch. 2.4.4). A <b>rotation matrix</b> carries nine numbers, but orthonormality (unit-length, mutually perpendicular columns) imposes six constraints — so just <b>three</b> values suffice. <b>Euler angles</b> (roll, pitch, yaw) are three turns in a row: easy to picture, but they break. When <b>pitch reaches ±90°</b> two axes line up and a degree of freedom is lost — that's <span class="k">gimbal lock</span>, a singularity of the representation. A <b>quaternion</b> stores the <i>same</i> pose as a single turn of angle θ about one axis <span class="k">n</span> (the Euler axis), constrained to unit length <span class="k">|q| = 1</span>. No lock, smooth to interpolate (slerp), and cheaper to compose (16 multiplications vs. 27 for matrices) — which is why robots and game engines use it. Flip the lens below; the body's pose is identical, only the math differs.`,
+  hint:'Drag to orbit. Push pitch toward ±90° (or auto-sweep) to trigger gimbal lock.',
+  s:{roll:20,pitch:35,yaw:30, mode:'euler', sweep:false, clock:0},
+  ap(R,v){return [V.dot(R[0],v),V.dot(R[1],v),V.dot(R[2],v)];},
+  rotM(){const S=this.s;const cr=Math.cos(rad(S.roll)),sr=Math.sin(rad(S.roll));
+    const cp=Math.cos(rad(S.pitch)),sp=Math.sin(rad(S.pitch));
+    const cy=Math.cos(rad(S.yaw)),sy=Math.sin(rad(S.yaw));
+    return [
+      [cy*cp, cy*sp*sr-sy*cr, cy*sp*cr+sy*sr],
+      [sy*cp, sy*sp*sr+cy*cr, sy*sp*cr-cy*sr],
+      [-sp,   cp*sr,          cp*cr]
+    ];},
+  controls(){
+    const S=this.s;
+    const rep=chips('representation',[
+      {label:'Euler (gimbal)',value:'euler'},
+      {label:'Quaternion (axis-angle)',value:'quat'}
+    ],(val,b,row)=>{ S.mode=val; [...row.children].forEach(c=>c.classList.remove('on')); b.classList.add('on'); });
+    rep.children[0].classList.add('on');
+    slider('roll (X)',-180,180,S.roll,1,'x',x=>S.roll=x,x=>x+'°');
+    slider('pitch (Y)',-180,180,S.pitch,1,'y',x=>S.pitch=x,x=>x+'°');
+    slider('yaw (Z)',-180,180,S.yaw,1,'z',x=>S.yaw=x,x=>x+'°');
+    if(!reduceMotion) toggle('auto-sweep pitch (watch lock)',S.sweep,v=>S.sweep=v);
+  },
+  draw(){
+    grid3();axes3();
+    const S=this.s;
+    if(S.mode==='euler'&&S.sweep&&!reduceMotion){ S.clock+=0.018; S.pitch=Math.round(100*Math.sin(S.clock)); }
+    const R=this.rotM();
+    // body box (a flat "drone/phone" so orientation is obvious)
+    const hx=1.2,hy=0.8,hz=0.26;
+    const signs=[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+    const cor=signs.map(s=>this.ap(R,[s[0]*hx,s[1]*hy,s[2]*hz]));
+    const tp=[4,5,6,7].map(i=>project(cor[i]));
+    if(tp.every(p=>p.vis)){ ctx.save();ctx.fillStyle='rgba(255,180,84,.16)';ctx.strokeStyle='rgba(255,180,84,.5)';
+      ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(tp[0].x,tp[0].y);
+      for(let i=1;i<4;i++)ctx.lineTo(tp[i].x,tp[i].y);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore(); }
+    const edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+    ctx.save();ctx.strokeStyle='rgba(230,237,246,.35)';ctx.lineWidth=1.4;
+    edges.forEach(e=>{const A=project(cor[e[0]]),B=project(cor[e[1]]);
+      if(A.vis&&B.vis){ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();}});
+    ctx.restore();
+    // body triad
+    arrow3([0,0,0],this.ap(R,[1.7,0,0]),getC('--x'),3);
+    arrow3([0,0,0],this.ap(R,[0,1.7,0]),getC('--y'),3);
+    arrow3([0,0,0],this.ap(R,[0,0,1.7]),getC('--z'),3);
+    // shared quaternion / axis-angle of this pose
+    const q=matToQuat(R);
+    const angle=2*Math.acos(clamp(q[0],-1,1));
+    const sn=Math.sqrt(Math.max(1-q[0]*q[0],0));
+    const axis= sn<1e-5?[0,0,1]:[q[1]/sn,q[2]/sn,q[3]/sn];
+
+    if(S.mode==='euler'){
+      const y=rad(S.yaw),p=rad(S.pitch);
+      const yawAx=[0,0,1];
+      const pitchAx=[-Math.sin(y),Math.cos(y),0];
+      const rollAx=[Math.cos(y)*Math.cos(p),Math.sin(y)*Math.cos(p),-Math.sin(p)];
+      const lock=Math.abs(Math.cos(p))<0.06;
+      ring3([0,0,0],yawAx,2.7,'rgba(77,140,255,'+(lock?'.95':'.6')+')',lock?3:2);
+      ring3([0,0,0],pitchAx,2.25,'rgba(61,220,132,.55)',2);
+      ring3([0,0,0],rollAx,1.8,'rgba(255,85,102,'+(lock?'.95':'.6')+')',lock?3:2);
+      RO.innerHTML =
+        ro('roll / pitch / yaw',fmt(S.roll,0)+'°  '+fmt(S.pitch,0)+'°  '+fmt(S.yaw,0)+'°','')+
+        '<div class="rline" style="margin-top:6px"><span>same pose as a quaternion</span></div>'+
+        '<div class="matrix" style="border-left-color:var(--accent2);background:rgba(45,212,212,.05)">'+
+          q.map(n=>fmt(n,2)).join('&nbsp; ')+'</div>'+
+        ro('= one turn of',deg(angle).toFixed(1)+'°','acc');
+      RO.innerHTML += lock
+        ? '<div class="verdict bad">Gimbal lock — pitch ≈ ±90°. The red and blue rings now spin about the same axis, so one degree of freedom is gone.</div>'
+        : '<div class="verdict ok">Three independent rings (blue=yaw, green=pitch, red=roll). Drive pitch to ±90° to collapse two together.</div>';
+    } else {
+      arrow3(V.scale(axis,-2.7),V.scale(axis,2.7),'rgba(45,212,212,.95)',3);
+      label3(V.scale(axis,2.7),'n',getC('--accent2'),9,-7);
+      RO.innerHTML =
+        '<div class="rline"><span>quaternion (w, x, y, z)</span></div>'+
+        '<div class="matrix" style="border-left-color:var(--accent2);background:rgba(45,212,212,.05)">'+
+          q.map(n=>fmt(n,3)).join('&nbsp; ')+'</div>'+
+        ro('|q| (always 1)',V.len(q).toFixed(3),'acc2')+
+        ro('rotation angle',deg(angle).toFixed(1)+'°','acc')+
+        ro('about axis n','['+axis.map(n=>fmt(n,2)).join(', ')+']','acc2')+
+        ro('from r/p/y',fmt(S.roll,0)+'° '+fmt(S.pitch,0)+'° '+fmt(S.yaw,0)+'°','');
+      RO.innerHTML += '<div class="verdict ok">One axis, one angle — no gimbal lock, and smooth to interpolate (slerp). This is what robots actually store.</div>';
+    }
+  }
+};
+
+/* ---------- 08 FORWARD KINEMATICS (2D, 3-link) ---------- */
+modules.fk = {
+  title:'Forward Kinematics', is2D:true,
+  blurb:`<b>Forward kinematics</b> maps <b>joint space</b> to <b>task space</b> (Ch. 3.1): given the joint angles <span class="k">q = (θ₁, θ₂, θ₃)</span>, where is the hand? Each link adds its own frame — rotated by its joint, pushed out by its length — so the tip pose follows from simple trigonometry:
+<span class="k">x = l₁cosθ₁ + l₂cos(θ₁+θ₂) + l₃cos(θ₁+θ₂+θ₃)</span> (and similarly for y), while the orientation is just the running sum <span class="k">φ = θ₁+θ₂+θ₃</span>.
+This is the <i>easy</i> direction: the map <span class="k">r = f(q)</span> is exact and <b>single-valued</b> — one set of joint angles gives exactly one end-effector pose. The set of angles you can command is the <b>configuration space</b>; the region the tip can reach is the <b>workspace</b>.`,
+  hint:'Turn the joints. Each frame is built on the one before it — the tip ends the chain.',
+  s:{t1:50,t2:-40,t3:30, l1:1.9,l2:1.5,l3:1.0, frames:true},
+  controls(){
+    const S=this.s;
+    slider('θ₁ (base)',-180,180,S.t1,1,'x',x=>S.t1=x,x=>x+'°');
+    slider('θ₂ (joint 2)',-180,180,S.t2,1,'y',x=>S.t2=x,x=>x+'°');
+    slider('θ₃ (joint 3)',-180,180,S.t3,1,'z',x=>S.t3=x,x=>x+'°');
+    slider('link l₁',0.5,2.2,S.l1,0.1,null,x=>S.l1=x);
+    slider('link l₂',0.5,2.2,S.l2,0.1,null,x=>S.l2=x);
+    slider('link l₃',0.5,2.2,S.l3,0.1,null,x=>S.l3=x);
+    toggle('show joint frames',S.frames,v=>S.frames=v);
+    chips('poses',[
+      {label:'Reach up',value:[80,-20,-15]},
+      {label:'Folded',value:[40,120,120]},
+      {label:'Straight',value:[20,0,0]},
+    ],v=>{S.t1=v[0];S.t2=v[1];S.t3=v[2];});
+  },
+  draw(){
+    grid2();
+    const S=this.s;
+    const a1=rad(S.t1),a2=rad(S.t1+S.t2),a3=rad(S.t1+S.t2+S.t3);
+    const p0=[0,0];
+    const p1=[S.l1*Math.cos(a1),S.l1*Math.sin(a1)];
+    const p2=[p1[0]+S.l2*Math.cos(a2),p1[1]+S.l2*Math.sin(a2)];
+    const p3=[p2[0]+S.l3*Math.cos(a3),p2[1]+S.l3*Math.sin(a3)];
+    // reach circle
+    ctx.save();ctx.strokeStyle='rgba(120,150,190,.15)';ctx.setLineDash([4,6]);
+    const o=w2s(0,0);ctx.beginPath();ctx.arc(o.x,o.y,(S.l1+S.l2+S.l3)*PPU,0,7);ctx.stroke();ctx.restore();
+    // links
+    const P0=w2s(p0[0],p0[1]),P1=w2s(p1[0],p1[1]),P2=w2s(p2[0],p2[1]),P3=w2s(p3[0],p3[1]);
+    line2(P0,P1,getC('--x'),5);line2(P1,P2,getC('--y'),5);line2(P2,P3,getC('--z'),5);
+    // joint frames
+    if(S.frames){ frameAxes2(p0,0,0.5); frameAxes2(p1,a1,0.45); frameAxes2(p2,a2,0.45); frameAxes2(p3,a3,0.55); }
+    // joints
+    [[P0,getC('--x')],[P1,getC('--y')],[P2,getC('--z')]].forEach(([p,c])=>{
+      ctx.save();ctx.fillStyle='#0a0e16';ctx.strokeStyle=c;ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fill();ctx.stroke();ctx.restore();});
+    // end-effector
+    ctx.save();ctx.fillStyle=getC('--accent');ctx.beginPath();ctx.arc(P3.x,P3.y,7,0,7);ctx.fill();
+    ctx.font='600 12px "Space Grotesk", sans-serif';ctx.fillText('TCP',P3.x+11,P3.y-7);ctx.restore();
+    const phi=S.t1+S.t2+S.t3;
+    RO.innerHTML=
+      ro('θ₁, θ₂, θ₃',fmt(S.t1,0)+'°  '+fmt(S.t2,0)+'°  '+fmt(S.t3,0)+'°','')+
+      '<div class="rline" style="margin-top:6px"><span>end-effector pose</span></div>'+
+      ro('x',fmt(p3[0]),'acc')+ro('y',fmt(p3[1]),'acc')+
+      ro('orientation φ',fmt(phi,0)+'°','acc2')+
+      '<div class="verdict ok">One set of joint angles → exactly one tip pose. That’s forward kinematics: just follow the chain.</div>';
+  }
+};
+
+/* ---------- 09 DH PARAMETERS (3D, articulated arm) ---------- */
+modules.dh = {
+  title:'DH Parameters', is3D:true,
+  blurb:`<b>Denavit–Hartenberg</b> is the de-facto recipe (Ch. 3.1.2) for scaling forward kinematics to multi-link arms. Attach a frame to each joint — z along the joint axis, x along the common normal — then describe each link with just <b>four numbers</b>: link length <span class="k">a</span>, link twist <span class="k">α</span>, link offset <span class="k">d</span>, and joint angle <span class="k">θ</span>. Two describe the link itself, two describe its connection to the next. Each table row collapses into one homogeneous step
+<span class="k">Aᵢ = Tz(d)·Rz(θ)·Tx(a)·Rx(α)</span>,
+a 4×4 matrix holding a rotation R and a translation t. Multiply the rows top-to-bottom — <span class="k">⁰T₃ = A₁·A₂·A₃</span> — and the bottom frame {3} is the tool. For a <b>revolute</b> joint only θ varies; for a <b>prismatic</b> joint only d does. Everything else is fixed by the mechanism.`,
+  hint:'Drag to orbit. Turn the joints (θ); each table row is one frame hop {i−1}→{i}.',
+  s:{t1:30,t2:35,t3:-40},
+  rows(){const S=this.s;return [
+    {th:rad(S.t1),d:1.2,a:0,  al:rad(90),thd:S.t1},
+    {th:rad(S.t2),d:0,  a:2.0,al:0,      thd:S.t2},
+    {th:rad(S.t3),d:0,  a:1.5,al:0,      thd:S.t3},
+  ];},
+  controls(){
+    const S=this.s;
+    slider('θ₁ (joint 1)',-180,180,S.t1,1,'x',x=>S.t1=x,x=>x+'°');
+    slider('θ₂ (joint 2)',-180,180,S.t2,1,'y',x=>S.t2=x,x=>x+'°');
+    slider('θ₃ (joint 3)',-180,180,S.t3,1,'z',x=>S.t3=x,x=>x+'°');
+  },
+  draw(){
+    grid3();axes3();
+    const rows=this.rows();
+    let M=mat4identity();
+    const frames=[mat4identity()];
+    rows.forEach(r=>{M=mat4mul(M,dhMat(r.th,r.d,r.a,r.al));frames.push(M);});
+    // links between consecutive frame origins
+    for(let i=0;i<frames.length-1;i++){
+      const A=project(mat4origin(frames[i])),B=project(mat4origin(frames[i+1]));
+      if(A.vis&&B.vis)line2(A,B,'rgba(230,237,246,.5)',5);
+    }
+    // frame triads + joint markers
+    frames.forEach((F,i)=>{
+      const o=mat4origin(F),last=(i===frames.length-1),s=last?0.85:0.6;
+      arrow3(o,V.add(o,V.scale(mat4axis(F,0),s)),getC('--x'),2.2);
+      arrow3(o,V.add(o,V.scale(mat4axis(F,1),s)),getC('--y'),2.2);
+      arrow3(o,V.add(o,V.scale(mat4axis(F,2),s)),getC('--z'),2.2);
+      const P=project(o);
+      if(P.vis){ctx.save();ctx.fillStyle=last?getC('--accent'):'#0a0e16';
+        ctx.strokeStyle=getC('--accent2');ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(P.x,P.y,last?7:5,0,7);ctx.fill();ctx.stroke();
+        ctx.fillStyle=getC('--dim');ctx.font='600 11px "Space Grotesk", sans-serif';
+        ctx.fillText('{'+i+'}',P.x+9,P.y+4);ctx.restore();}
+    });
+    const ee=mat4origin(frames[frames.length-1]);
+    // DH table (self-contained 4-column grid)
+    let tbl='<div class="rline"><span>DH table</span></div>'+
+      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px 10px;'+
+      'font-family:var(--mono);font-size:11.5px;text-align:right;margin:4px 0 2px;'+
+      'border-left:2px solid var(--accent2);padding:8px 12px;background:rgba(45,212,212,.05);border-radius:0 6px 6px 0">'+
+      '<span style="color:var(--faint)">α</span><span style="color:var(--faint)">a</span>'+
+      '<span style="color:var(--faint)">d</span><span style="color:var(--faint)">θ</span>';
+    rows.forEach(r=>{tbl+=
+      '<span>'+fmt(deg(r.al),0)+'°</span><span>'+fmt(r.a)+'</span><span>'+fmt(r.d)+'</span>'+
+      '<span style="color:var(--accent)">'+fmt(r.thd,0)+'°</span>';});
+    tbl+='</div>';
+    RO.innerHTML=tbl+
+      '<div class="rline" style="margin-top:6px"><span>end-effector {3}</span></div>'+
+      vecRow(ee,'acc')+
+      '<div class="verdict ok">FK = A₁·A₂·A₃. Each row is one 4×4 hop; four numbers per joint describe the whole robot.</div>';
+  }
+};
+
+/* ---------- 10 INVERSE KINEMATICS (2D, 2-link) ---------- */
+modules.ik = {
+  title:'Inverse Kinematics', is2D:true,
+  blurb:`<b>Inverse kinematics</b> runs the hard direction (Ch. 3.2): name a target and solve <span class="k">q = f<sup>−1</sup>(r)</span> for the joint angles that reach it. It is <b>heavily non-linear</b> and often has <b>multiple solutions</b>.
+<b>Analytic solution (this 2-link arm).</b> By the law of cosines, <span class="k">cos θ₂ = (x²+y²−l₁²−l₂²) / (2 l₁ l₂)</span>, so <span class="k">θ₂ = ±acos(·)</span> gives the two <b>elbow-down / elbow-up</b> branches; then <span class="k">θ₁ = atan2(y,x) − atan2(l₂ sinθ₂, l₁+l₂ cosθ₂)</span>. Targets outside the annulus <span class="k">|l₁−l₂| … l₁+l₂</span> have no solution; a 6-DOF arm can reach one pose up to 16 ways.
+<b>General arms — the Jacobian.</b> Closed forms get intractable, so we go numerical. Differentiate the forward kinematics <span class="k">r = f(q)</span> with respect to time (chain rule): <span class="k">ṙ = J(q) q̇</span>. The <b>Jacobian</b> <span class="k">J</span> stacks every partial derivative, <span class="k">J<sub>ij</sub> = ∂r<sub>i</sub>/∂q<sub>j</sub></span> — column <i>j</i> is how the tip moves when joint <i>j</i> turns.
+<b>Deriving J here.</b> From <span class="k">x = l₁cosθ₁ + l₂cos(θ₁+θ₂)</span> and <span class="k">y = l₁sinθ₁ + l₂sin(θ₁+θ₂)</span>, take partials:
+<span class="k">∂x/∂θ₁ = −l₁sinθ₁ − l₂sin(θ₁+θ₂)</span>, &nbsp;<span class="k">∂x/∂θ₂ = −l₂sin(θ₁+θ₂)</span>,
+<span class="k">∂y/∂θ₁ = l₁cosθ₁ + l₂cos(θ₁+θ₂)</span>, &nbsp;<span class="k">∂y/∂θ₂ = l₂cos(θ₁+θ₂)</span> — the 2×2 matrix shown live below, with <span class="k">det J = l₁ l₂ sin θ₂</span>.
+<b>Inverting it.</b> If J is square and full-rank, <span class="k">q̇ = J<sup>−1</sup> ν</span>. In general use the pseudo-inverse <span class="k">J<sup>+</sup> = J<sup>T</sup>(J J<sup>T</sup>)<sup>−1</sup></span> and drive the error to zero with the feedback step <span class="k">Δq = −J<sup>+</sup> e</span>, &nbsp;<span class="k">e = (tip − target)</span> — gradient descent through configuration space. Near a singularity (<span class="k">det J → 0</span>) the inverse explodes, so the <b>damped least-squares</b> form <span class="k">Δq = (J<sup>T</sup>J + λ²I)<sup>−1</sup> J<sup>T</sup> e</span> trades a little accuracy for stability. Drag the orange target to see both elbow solutions.`,
+  hint:'Drag the orange target anywhere. Toggle elbow up / down — both reach the same point.',
+  s:{tx:2.6,ty:1.6, l1:2.2,l2:1.7, elbow:'down'},
+  controls(){
+    const S=this.s;
+    slider('link l₁',1,3,S.l1,0.1,null,x=>S.l1=x);
+    slider('link l₂',1,3,S.l2,0.1,null,x=>S.l2=x);
+    chips('elbow',[{label:'Elbow down',value:'down'},{label:'Elbow up',value:'up'}],
+      (val,b,row)=>{S.elbow=val;[...row.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');})
+      .children[0].classList.add('on');
+  },
+  pointerDown(wx,wy){this.s.tx=wx;this.s.ty=wy;},
+  pointerMove(wx,wy){this.s.tx=wx;this.s.ty=wy;},
+  solve(down){
+    const S=this.s,r=Math.hypot(S.tx,S.ty);
+    const rmin=Math.abs(S.l1-S.l2),rmax=S.l1+S.l2;
+    const reach=r>=rmin-1e-6 && r<=rmax+1e-6;
+    const rc=clamp(r,rmin+1e-4,rmax-1e-4);
+    const c2=clamp((rc*rc-S.l1*S.l1-S.l2*S.l2)/(2*S.l1*S.l2),-1,1);
+    let t2=Math.acos(c2); if(!down)t2=-t2;
+    const t1=Math.atan2(S.ty,S.tx)-Math.atan2(S.l2*Math.sin(t2),S.l1+S.l2*Math.cos(t2));
+    const j1=[S.l1*Math.cos(t1),S.l1*Math.sin(t1)];
+    const tip=[j1[0]+S.l2*Math.cos(t1+t2),j1[1]+S.l2*Math.sin(t1+t2)];
+    return {t1,t2,j1,tip,reach,rmin,rmax};
+  },
+  drawArm(sol,alpha){
+    const O=w2s(0,0),J=w2s(sol.j1[0],sol.j1[1]),T=w2s(sol.tip[0],sol.tip[1]);
+    ctx.save();ctx.globalAlpha=alpha;
+    line2(O,J,getC('--x'),5);line2(J,T,getC('--y'),5);
+    [O,J].forEach((p,i)=>{ctx.fillStyle='#0a0e16';ctx.strokeStyle=i?getC('--y'):getC('--x');
+      ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fill();ctx.stroke();});
+    ctx.restore();
+  },
+  draw(){
+    grid2();
+    const S=this.s;
+    const main=this.solve(S.elbow==='down');
+    const o=w2s(0,0);
+    // reachable annulus
+    ctx.save();ctx.beginPath();
+    ctx.arc(o.x,o.y,main.rmax*PPU,0,7);
+    ctx.arc(o.x,o.y,main.rmin*PPU,0,7,true);
+    ctx.fillStyle='rgba(45,212,212,.07)';ctx.fill('evenodd');
+    ctx.strokeStyle='rgba(45,212,212,.3)';ctx.lineWidth=1.3;ctx.setLineDash([5,5]);
+    ctx.beginPath();ctx.arc(o.x,o.y,main.rmax*PPU,0,7);ctx.stroke();
+    if(main.rmin>0.02){ctx.beginPath();ctx.arc(o.x,o.y,main.rmin*PPU,0,7);ctx.stroke();}
+    ctx.restore();
+    // other solution (faint), then chosen (solid)
+    this.drawArm(this.solve(S.elbow!=='down'),0.28);
+    this.drawArm(main,1);
+    // target crosshair
+    const Tg=w2s(S.tx,S.ty);
+    ctx.save();ctx.strokeStyle=getC('--accent');ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(Tg.x,Tg.y,9,0,7);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(Tg.x-13,Tg.y);ctx.lineTo(Tg.x+13,Tg.y);
+    ctx.moveTo(Tg.x,Tg.y-13);ctx.lineTo(Tg.x,Tg.y+13);ctx.stroke();
+    ctx.fillStyle=getC('--accent');ctx.font='600 12px "Space Grotesk", sans-serif';
+    ctx.fillText('target',Tg.x+14,Tg.y-9);ctx.restore();
+    const other=this.solve(S.elbow!=='down');
+    RO.innerHTML=
+      ro('target','['+fmt(S.tx)+', '+fmt(S.ty)+']','acc')+
+      ro('distance r',Math.hypot(S.tx,S.ty).toFixed(2),'')+
+      ro('reach [min, max]','['+fmt(main.rmin)+', '+fmt(main.rmax)+']','acc2')+
+      '<div class="rline" style="margin-top:6px"><span>chosen ('+S.elbow+')</span></div>'+
+      ro('θ₁',deg(main.t1).toFixed(1)+'°','x')+ro('θ₂',deg(main.t2).toFixed(1)+'°','y')+
+      '<div class="rline" style="margin-top:6px"><span>other ('+(S.elbow==='down'?'up':'down')+')</span></div>'+
+      ro('θ₁',deg(other.t1).toFixed(1)+'°','')+ro('θ₂',deg(other.t2).toFixed(1)+'°','')+
+      (()=>{ const t1=main.t1,t2=main.t2,s1=Math.sin(t1),c1=Math.cos(t1),s12=Math.sin(t1+t2),c12=Math.cos(t1+t2);
+        const J=[[-S.l1*s1-S.l2*s12,-S.l2*s12],[S.l1*c1+S.l2*c12,S.l2*c12]];
+        return '<div class="rline" style="margin-top:6px"><span>Jacobian J = ∂(x,y)/∂(θ₁,θ₂)</span></div>'+
+          matEq('<span>'+fmt(J[0][0])+'</span><span>'+fmt(J[0][1])+'</span><span>'+fmt(J[1][0])+'</span><span>'+fmt(J[1][1])+'</span>',2)+
+          ro('det J = l₁l₂sinθ₂',(S.l1*S.l2*Math.sin(t2)).toFixed(3),Math.abs(S.l1*S.l2*Math.sin(t2))<0.15?'x':'acc'); })();
+    RO.innerHTML+= main.reach
+      ? '<div class="verdict ok">Reached. Two joint solutions land the tip here — elbow-up and elbow-down.</div>'
+      : '<div class="verdict bad">Out of reach — target is outside the annulus. The solver clamps to the nearest reachable point.</div>';
+  }
+};
+
+/* ---------- 11 WORKSPACE (2D reachable region) ---------- */
+modules.workspace = {
+  title:'Workspace', is2D:true,
+  blurb:`The <b>workspace</b> is every point the tool can possibly reach. A 2-link arm with free joints sweeps a full <b>annulus</b> — outer radius <span class="k">l₁+l₂</span>, inner hole <span class="k">|l₁−l₂|</span>. Add a <b>joint limit</b> and the reachable cloud shrinks to a slice. Knowing the workspace tells you where to mount a robot so it can actually do its job.`,
+  hint:'Change the link lengths and elbow limit; each dot is a tip pose the arm can hit.',
+  s:{l1:2,l2:1.4,lim:180,_pts:null,_key:''},
+  build(){
+    const S=this.s,pts=[];
+    for(let a=-180;a<=180;a+=4){const t1=rad(a);
+      for(let b=-S.lim;b<=S.lim;b+=4){const t2=rad(b);
+        pts.push([S.l1*Math.cos(t1)+S.l2*Math.cos(t1+t2),
+                  S.l1*Math.sin(t1)+S.l2*Math.sin(t1+t2)]);}}
+    S._pts=pts;S._key=S.l1+'|'+S.l2+'|'+S.lim;
+  },
+  controls(){
+    const S=this.s;
+    slider('link l₁',1,2.8,S.l1,0.1,null,x=>S.l1=x);
+    slider('link l₂',1,2.8,S.l2,0.1,null,x=>S.l2=x);
+    slider('elbow limit ±',10,180,S.lim,5,'y',x=>S.lim=x,x=>x+'°');
+  },
+  draw(){
+    grid2();
+    const S=this.s;
+    if(!S._pts||S._key!==(S.l1+'|'+S.l2+'|'+S.lim))this.build();
+    // reachable cloud
+    ctx.save();ctx.fillStyle='rgba(45,212,212,.5)';
+    S._pts.forEach(p=>{const P=w2s(p[0],p[1]);ctx.fillRect(P.x-1,P.y-1,2,2);});
+    ctx.restore();
+    // a sample arm inside the cloud
+    const t1=rad(30),t2=rad(Math.min(S.lim,60));
+    const j1=[S.l1*Math.cos(t1),S.l1*Math.sin(t1)];
+    const tip=[j1[0]+S.l2*Math.cos(t1+t2),j1[1]+S.l2*Math.sin(t1+t2)];
+    const O=w2s(0,0),J=w2s(j1[0],j1[1]),T=w2s(tip[0],tip[1]);
+    line2(O,J,getC('--x'),5);line2(J,T,getC('--y'),5);
+    [O,J].forEach((p,i)=>{ctx.save();ctx.fillStyle='#0a0e16';ctx.strokeStyle=i?getC('--y'):getC('--x');
+      ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fill();ctx.stroke();ctx.restore();});
+    ctx.save();ctx.fillStyle=getC('--accent');ctx.beginPath();ctx.arc(T.x,T.y,6,0,7);ctx.fill();ctx.restore();
+    const rmax=S.l1+S.l2,rmin=Math.abs(S.l1-S.l2),full=S.lim>=179.9;
+    RO.innerHTML=
+      ro('outer radius l₁+l₂',rmax.toFixed(2),'acc')+
+      ro('inner radius |l₁−l₂|',rmin.toFixed(2),'acc2')+
+      ro('elbow limit','±'+fmt(S.lim,0)+'°','y')+
+      ro('sampled points',S._pts.length,'')+
+      (full?'<div class="verdict ok">Full annulus — with unrestricted joints the tip reaches every point between the inner and outer circle.</div>'
+           :'<div class="verdict warn">Joint limit applied — the cloud is only a slice of the full annulus. Limited joints shrink the workspace.</div>');
+  }
+};
+
+/* ---------- DIFFERENTIAL DRIVE — forward kinematics & odometry ---------- */
+modules.diffdrive = {
+  title:'Differential Drive', is2D:true,
+  blurb:`A <b>differential-wheel</b> robot steers by spinning its two wheels at different speeds (Ch. 3.3). Each wheel of radius <span class="k">r</span> rolls without slipping, so a wheel turning at <span class="k">φ̇</span> moves the ground point at <span class="k">rφ̇</span>. Combining the two gives the robot's <b>body velocity</b>: forward speed <span class="k">v = r(φ̇ₗ+φ̇ᵣ)/2</span> and turn rate <span class="k">ω = r(φ̇ᵣ−φ̇ₗ)/d</span>, where <span class="k">d</span> is the axle width.
+Unlike an arm, wheel angles alone don't fix the pose — you must <b>integrate the velocities over time</b>. Summing those small steps to track <span class="k">(x, y, θ)</span> is called <b>odometry</b>, and the traced curve is the result. Press play and watch the pose build up.`,
+  hint:'Set each wheel speed and press play. Equal speeds → straight; opposite → spin; unequal → arc.',
+  s:{phiL:1.4, phiR:2.6, r:0.35, d:1.2, x:0,y:0,th:0, path:[], play:true},
+  reset(){const S=this.s;S.x=0;S.y=0;S.th=0;S.path=[];},
+  controls(){
+    const S=this.s;
+    slider('left wheel φ̇ₗ',-3,3,S.phiL,0.1,'y',x=>S.phiL=x,x=>x.toFixed(1)+' rad/s');
+    slider('right wheel φ̇ᵣ',-3,3,S.phiR,0.1,'x',x=>S.phiR=x,x=>x.toFixed(1)+' rad/s');
+    slider('wheel radius r',0.15,0.6,S.r,0.05,null,x=>S.r=x);
+    slider('axle width d',0.6,2,S.d,0.1,null,x=>S.d=x);
+    chips('drive',[
+      {label:'Straight',value:[2,2]},
+      {label:'Gentle arc',value:[1.5,2.6]},
+      {label:'Spin in place',value:[-2,2]},
+    ],v=>{S.phiL=v[0];S.phiR=v[1];this.reset();});
+    chips('',[{label:'⟲ reset path',value:0}],()=>this.reset());
+    if(!reduceMotion) toggle('play',S.play,v=>S.play=v);
+  },
+  draw(){
+    grid2();
+    const S=this.s;
+    const v=S.r*(S.phiL+S.phiR)/2, om=S.r*(S.phiR-S.phiL)/S.d;
+    if(S.play&&!reduceMotion){
+      const dt=1/60;
+      S.x+=v*Math.cos(S.th)*dt; S.y+=v*Math.sin(S.th)*dt; S.th+=om*dt;
+      S.path.push([S.x,S.y]); if(S.path.length>1600)S.path.shift();
+      if(Math.hypot(S.x,S.y)>5.6) this.reset();   // wandered off — recenter
+    }
+    if(S.path.length>1){ctx.save();ctx.strokeStyle='rgba(45,212,212,.55)';ctx.lineWidth=2;ctx.beginPath();
+      S.path.forEach((p,i)=>{const P=w2s(p[0],p[1]);i?ctx.lineTo(P.x,P.y):ctx.moveTo(P.x,P.y);});ctx.stroke();ctx.restore();}
+    drawDiffRobot(S.x,S.y,S.th,S.d,S.r);
+    const straight=Math.abs(S.phiR-S.phiL)<1e-3, spin=Math.abs(S.phiL+S.phiR)<1e-3;
+    const Ricc=(S.d/2)*(S.phiL+S.phiR)/(S.phiR-S.phiL);
+    RO.innerHTML=
+      ro('left φ̇ₗ',S.phiL.toFixed(2)+' rad/s','y')+
+      ro('right φ̇ᵣ',S.phiR.toFixed(2)+' rad/s','x')+
+      '<div class="rline" style="margin-top:6px"><span>body velocity</span></div>'+
+      ro('v = r(φ̇ₗ+φ̇ᵣ)/2',v.toFixed(2)+' u/s','acc')+
+      ro('ω = r(φ̇ᵣ−φ̇ₗ)/d',om.toFixed(2)+' rad/s','acc')+
+      '<div class="rline" style="margin-top:6px"><span>pose by odometry</span></div>'+
+      ro('x',S.x.toFixed(2),'acc2')+ro('y',S.y.toFixed(2),'acc2')+ro('θ',deg(S.th).toFixed(0)+'°','acc2')+
+      (straight
+        ? '<div class="verdict ok">Equal wheels → straight line (ω = 0): pure translation.</div>'
+        : spin
+        ? '<div class="verdict ok">Equal &amp; opposite → spin in place (v = 0) about the axle center.</div>'
+        : '<div class="verdict ok">Unequal wheels → circular arc of radius R = '+Ricc.toFixed(2)+' u about the ICC.</div>');
+  }
+};
+
+/* ---------- MOBILE INVERSE KINEMATICS — wheel speeds + drive-to-goal control ---------- */
+modules.mobileik = {
+  title:'Mobile Inverse Kinematics', is2D:true,
+  blurb:`Inverse kinematics for a mobile robot runs the other way (Ch. 3.4): pick a desired <b>body velocity</b> and solve for the wheel speeds that produce it —
+<span class="k">φ̇ₗ = (2v − ωd)/2r</span>, <span class="k">φ̇ᵣ = (2v + ωd)/2r</span>.
+But there's a catch: a differential drive is <b>non-holonomic</b> — it can roll forward and turn, yet it can <i>never</i> slide sideways. So to reach a point it can't just aim and strafe; it must <b>curve</b> toward it. Drag the target: a simple feedback controller (Ch. 3.4.2) sets <span class="k">v ∝ ρ</span> (distance) and <span class="k">ω ∝ α</span> (bearing), inverts to wheel speeds, and the robot drives itself there.`,
+  hint:'Drag the orange target anywhere. The robot curves to reach it — it can never move sideways.',
+  s:{gx:2.6,gy:1.6, r:0.35, d:1.2, x:-2.4,y:-1.6,th:0, path:[], play:true},
+  controls(){
+    const S=this.s;
+    slider('wheel radius r',0.15,0.6,S.r,0.05,null,x=>S.r=x);
+    slider('axle width d',0.6,2,S.d,0.1,null,x=>S.d=x);
+    chips('',[{label:'⟲ reset robot',value:0}],()=>{S.x=-2.4;S.y=-1.6;S.th=0;S.path=[];});
+    if(!reduceMotion) toggle('drive',S.play,v=>S.play=v);
+  },
+  pointerDown(wx,wy){this.s.gx=wx;this.s.gy=wy;},
+  pointerMove(wx,wy){this.s.gx=wx;this.s.gy=wy;},
+  draw(){
+    grid2();
+    const S=this.s;
+    const dx=S.gx-S.x, dy=S.gy-S.y, rho=Math.hypot(dx,dy);
+    const alpha=Math.atan2(Math.sin(Math.atan2(dy,dx)-S.th),Math.cos(Math.atan2(dy,dx)-S.th));
+    const arrived=rho<0.1;
+    let v=arrived?0:clamp(0.9*rho,0,1.6)*Math.max(0,Math.cos(alpha));
+    let om=arrived?0:clamp(2.6*alpha,-3,3);
+    const phiR=(2*v+om*S.d)/(2*S.r), phiL=(2*v-om*S.d)/(2*S.r);
+    if(S.play&&!reduceMotion&&!arrived){
+      const dt=1/60;
+      S.x+=v*Math.cos(S.th)*dt; S.y+=v*Math.sin(S.th)*dt; S.th+=om*dt;
+      S.path.push([S.x,S.y]); if(S.path.length>1600)S.path.shift();
+    }
+    if(S.path.length>1){ctx.save();ctx.strokeStyle='rgba(45,212,212,.5)';ctx.lineWidth=2;ctx.setLineDash([5,4]);
+      ctx.beginPath();S.path.forEach((p,i)=>{const P=w2s(p[0],p[1]);i?ctx.lineTo(P.x,P.y):ctx.moveTo(P.x,P.y);});ctx.stroke();ctx.restore();}
+    const Tg=w2s(S.gx,S.gy);   // target crosshair
+    ctx.save();ctx.strokeStyle=getC('--accent');ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(Tg.x,Tg.y,9,0,7);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(Tg.x-13,Tg.y);ctx.lineTo(Tg.x+13,Tg.y);ctx.moveTo(Tg.x,Tg.y-13);ctx.lineTo(Tg.x,Tg.y+13);ctx.stroke();
+    ctx.fillStyle=getC('--accent');ctx.font='600 12px "Space Grotesk", sans-serif';ctx.fillText('target',Tg.x+14,Tg.y-9);ctx.restore();
+    drawDiffRobot(S.x,S.y,S.th,S.d,S.r);
+    RO.innerHTML=
+      ro('target','['+fmt(S.gx)+', '+fmt(S.gy)+']','acc')+
+      '<div class="rline" style="margin-top:6px"><span>pose error</span></div>'+
+      ro('distance ρ',rho.toFixed(2),'')+
+      ro('bearing α',deg(alpha).toFixed(0)+'°','y')+
+      '<div class="rline" style="margin-top:6px"><span>commanded body velocity</span></div>'+
+      ro('v ∝ ρ',v.toFixed(2)+' u/s','acc')+ro('ω ∝ α',om.toFixed(2)+' rad/s','acc')+
+      '<div class="rline" style="margin-top:6px"><span>wheel speeds (inverse)</span></div>'+
+      ro('φ̇ₗ = (2v−ωd)/2r',phiL.toFixed(2),'y')+
+      ro('φ̇ᵣ = (2v+ωd)/2r',phiR.toFixed(2),'x')+
+      (arrived
+        ? '<div class="verdict ok">Arrived. The controller drove ρ→0 by blending forward speed and turning.</div>'
+        : '<div class="verdict warn">Non-holonomic: no sideways motion is possible, so the robot must curve toward the target.</div>');
+  }
+};
+
+/* ---------- 13 MOTION PROFILES (trajectory in time) ---------- */
+modules.trajectory = {
+  title:'Motion Profiles', is2D:true,
+  blurb:`A robot can't jump between joint angles — it follows a planned <b>motion profile</b> over time. The <b>trapezoidal</b> profile ramps speed up at constant acceleration, cruises at <span class="k">v_max</span>, then ramps down: fast, but acceleration jumps in steps. A <b>cubic</b> polynomial eases in and out with smooth, continuous velocity. This is the bridge from <i>where</i> (kinematics) to <i>how it moves</i> (motion planning).`,
+  hint:'Press play. Compare how trapezoidal vs cubic move the same joint from start to goal.',
+  s:{mode:'trap', q0:-90,q1:90, vmax:120, amax:240, t:0, play:true},
+  controls(){
+    const S=this.s;
+    const m=chips('profile',[{label:'Trapezoidal',value:'trap'},{label:'Cubic',value:'cubic'}],
+      (val,b,row)=>{S.mode=val;[...row.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');S.t=0;});
+    m.children[0].classList.add('on');
+    slider('start q₀',-180,0,S.q0,5,'x',x=>{S.q0=x;S.t=0;},x=>x+'°');
+    slider('goal q₁',0,180,S.q1,5,'y',x=>{S.q1=x;S.t=0;},x=>x+'°');
+    slider('max speed',30,300,S.vmax,5,null,x=>{S.vmax=x;S.t=0;},x=>x+'°/s');
+    slider('max accel',60,600,S.amax,10,null,x=>{S.amax=x;S.t=0;},x=>x+'°/s²');
+    if(!reduceMotion)toggle('play',S.play,v=>S.play=v);
+  },
+  trap(){
+    const S=this.s,D=S.q1-S.q0,L=Math.abs(D),sg=Math.sign(D)||1;
+    let ta=S.vmax/S.amax, tc, vp, tf;
+    if(L < S.vmax*S.vmax/S.amax){ ta=Math.sqrt(L/S.amax); tc=0; vp=S.amax*ta; tf=2*ta; }
+    else { tc=(L-S.vmax*S.vmax/S.amax)/S.vmax; vp=S.vmax; tf=2*ta+tc; }
+    const q=t=>{ let s; if(t<ta)s=0.5*S.amax*t*t;
+      else if(t<ta+tc)s=0.5*S.amax*ta*ta+vp*(t-ta);
+      else{const td=clamp(t,0,tf)-ta-tc;s=0.5*S.amax*ta*ta+vp*tc+vp*td-0.5*S.amax*td*td;}
+      return S.q0+sg*s; };
+    const v=t=>{ let vv; if(t<ta)vv=S.amax*t; else if(t<ta+tc)vv=vp; else vv=vp-S.amax*(clamp(t,0,tf)-ta-tc); return sg*Math.max(vv,0); };
+    return {tf:Math.max(tf,1e-3),q,v};
+  },
+  cubic(){
+    const S=this.s,D=S.q1-S.q0,tf=this.trap().tf;
+    return {tf, q:t=>{const s=clamp(t/tf,0,1);return S.q0+D*(3*s*s-2*s*s*s);},
+                v:t=>{const s=clamp(t/tf,0,1);return D*(6*s-6*s*s)/tf;}};
+  },
+  draw(){
+    ctx.clearRect(0,0,W,H);
+    const S=this.s;
+    const prof=S.mode==='trap'?this.trap():this.cubic();
+    if(S.play&&!reduceMotion){S.t+=1/60; if(S.t>prof.tf+0.6)S.t=0;}
+    const tt=clamp(S.t,0,prof.tf), qNow=prof.q(tt);
+    // ---- joint dial (left) ----
+    const cx=W*0.23, cy=H*0.5, R=Math.min(W,H)*0.17;
+    ctx.save();
+    ctx.strokeStyle='rgba(120,150,190,.18)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.stroke();
+    const tick=(d,col)=>{const a=-rad(d);ctx.strokeStyle=col;ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*(R-10),cy+Math.sin(a)*(R-10));
+      ctx.lineTo(cx+Math.cos(a)*(R+9),cy+Math.sin(a)*(R+9));ctx.stroke();};
+    tick(S.q0,getC('--x'));tick(S.q1,getC('--y'));
+    const a=-rad(qNow);
+    ctx.strokeStyle=getC('--accent');ctx.lineWidth=6;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);ctx.stroke();
+    ctx.lineCap='butt';
+    ctx.fillStyle='#0a0e16';ctx.strokeStyle=getC('--accent2');ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.arc(cx,cy,8,0,7);ctx.fill();ctx.stroke();
+    ctx.fillStyle=getC('--dim');ctx.font='600 12px "Space Grotesk", sans-serif';ctx.textAlign='center';
+    ctx.fillText('joint angle',cx,cy+R+34);ctx.restore();
+    // ---- plots (right) ----
+    const px=W*0.46, pw=W*0.48, ph=(H-150)/2, py1=64, py2=py1+ph+44;
+    const plot=(yTop,fn,col,title)=>{
+      const N=120, ys=[]; let mn=Infinity,mx=-Infinity;
+      for(let i=0;i<=N;i++){const val=fn(prof.tf*i/N);ys.push(val);mn=Math.min(mn,val);mx=Math.max(mx,val);}
+      if(mx-mn<1e-6){mx+=1;mn-=1;}
+      const pad=(mx-mn)*0.14;mn-=pad;mx+=pad;
+      const X=t=>px+(t/prof.tf)*pw, Y=v=>yTop+ph-((v-mn)/(mx-mn))*ph;
+      ctx.save();
+      ctx.strokeStyle='rgba(120,150,190,.2)';ctx.lineWidth=1;ctx.strokeRect(px,yTop,pw,ph);
+      if(mn<0&&mx>0){ctx.strokeStyle='rgba(120,150,190,.3)';ctx.setLineDash([4,4]);
+        ctx.beginPath();ctx.moveTo(px,Y(0));ctx.lineTo(px+pw,Y(0));ctx.stroke();ctx.setLineDash([]);}
+      ctx.strokeStyle=col;ctx.lineWidth=2.4;ctx.beginPath();
+      for(let i=0;i<=N;i++){const Xx=X(prof.tf*i/N),Yy=Y(ys[i]);i?ctx.lineTo(Xx,Yy):ctx.moveTo(Xx,Yy);}
+      ctx.stroke();
+      const NX=X(tt),NY=Y(fn(tt));
+      ctx.strokeStyle='rgba(255,180,84,.45)';ctx.setLineDash([3,4]);
+      ctx.beginPath();ctx.moveTo(NX,yTop);ctx.lineTo(NX,yTop+ph);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=getC('--accent');ctx.beginPath();ctx.arc(NX,NY,5,0,7);ctx.fill();
+      ctx.fillStyle=getC('--dim');ctx.font='600 12px "Space Grotesk", sans-serif';ctx.textAlign='left';
+      ctx.fillText(title,px,yTop-8);
+      ctx.restore();
+    };
+    plot(py1,prof.q,getC('--accent2'),'position  q(t)   [deg]');
+    plot(py2,prof.v,getC('--y'),'velocity  q̇(t)   [deg/s]');
+    RO.innerHTML=
+      ro('profile',S.mode==='trap'?'trapezoidal':'cubic','acc')+
+      ro('move',fmt(S.q0,0)+'°  →  '+fmt(S.q1,0)+'°','')+
+      ro('duration',prof.tf.toFixed(2)+' s','acc2')+
+      ro('time t',tt.toFixed(2)+' s','')+
+      ro('q(t)',fmt(qNow,1)+'°','acc')+
+      ro('q̇(t)',fmt(prof.v(tt),1)+'°/s','y')+
+      (S.mode==='trap'
+        ?'<div class="verdict ok">Trapezoidal: constant-accel ramps + constant-speed cruise. Time-optimal under the limits, but accel is discontinuous.</div>'
+        :'<div class="verdict ok">Cubic: velocity starts and ends at zero and varies smoothly — gentler on the motors, no abrupt accel jumps.</div>');
+  }
+};
+
+/* ---------- MARKOV LOCALIZATION — 1D grid (Bayes) filter ---------- */
+modules.markov = {
+  title:'Markov Localization', is2D:true,
+  blurb:`Where am I? A robot keeps a <b>belief</b> — a probability over every cell of a corridor (Ch. 16.2–16.3). Two updates alternate. The <b>perception update</b> (Bayes' rule) multiplies the belief by the sensor model and renormalizes — sensing a <b>door</b> boosts every door cell, sharpening the estimate. The <b>action update</b> convolves the belief with the motion model — each move <b>spreads</b> it out, since wheels slip.
+The doors are <b>landmarks</b>: no single reading locates the robot (every door looks alike), but their <b>unique spacing</b>, combined with motion, collapses the belief onto the true cell. Step it by hand, or let it run.`,
+  hint:'“Sense” sharpens the belief at doors; “Move →” spreads it. Watch the orange (most-likely) bar lock onto the true cell.',
+  s:{N:16, doors:null, bel:null, truePos:5, rel:0.82, pExact:0.8, clock:0, mode:0, auto:false},
+  initBelief(){const S=this.s; S.bel=new Array(S.N).fill(1/S.N);},
+  ensure(){const S=this.s; if(!S.doors){S.doors=new Array(S.N).fill(false);[3,4,11].forEach(i=>S.doors[i]=true);} if(!S.bel)this.initBelief();},
+  sense(){const S=this.s; const meas=S.doors[S.truePos]; let sum=0;
+    for(let i=0;i<S.N;i++){ const pDoor=S.doors[i]?S.rel:(1-S.rel); S.bel[i]*= meas?pDoor:(1-pDoor); sum+=S.bel[i]; }
+    if(sum>0)for(let i=0;i<S.N;i++)S.bel[i]/=sum;
+  },
+  move(){const S=this.s,N=S.N,pe=S.pExact,ps=(1-pe)/2; const nb=new Array(N).fill(0);
+    for(let i=0;i<N;i++){ nb[i]+=S.bel[i]*ps; nb[(i+1)%N]+=S.bel[i]*pe; nb[(i+2)%N]+=S.bel[i]*ps; }
+    S.bel=nb; S.truePos=(S.truePos+1)%N;
+  },
+  controls(){
+    const S=this.s; this.ensure();
+    chips('step',[{label:'Sense (perception)',value:'s'},{label:'Move → (action)',value:'m'}],
+      v=>{ if(v==='s')this.sense(); else this.move(); });
+    chips('',[{label:'⟲ reset belief',value:0}],()=>this.initBelief());
+    slider('sensor reliability',0.55,0.98,S.rel,0.01,'z',x=>S.rel=x,x=>(x*100).toFixed(0)+'%');
+    slider('motion certainty',0.5,1,S.pExact,0.02,'y',x=>S.pExact=x,x=>(x*100).toFixed(0)+'%');
+    if(!reduceMotion) toggle('auto-run (sense ⇄ move)',S.auto,v=>{S.auto=v;S.clock=0;});
+  },
+  draw(){
+    ctx.clearRect(0,0,W,H);
+    const S=this.s; this.ensure();
+    if(S.auto&&!reduceMotion){ S.clock+=1/60; if(S.clock>0.8){ S.clock=0; if(S.mode===0)this.sense(); else this.move(); S.mode^=1; } }
+    const N=S.N, mg=Math.max(28,W*0.05), cw=(W-2*mg)/N, floorY=H*0.34;
+    ctx.save();ctx.strokeStyle='rgba(120,150,190,.12)';ctx.lineWidth=1;
+    for(let i=0;i<=N;i++){const x=mg+i*cw;ctx.beginPath();ctx.moveTo(x,floorY-44);ctx.lineTo(x,floorY);ctx.stroke();}
+    ctx.restore();
+    ctx.save();ctx.strokeStyle='rgba(120,150,190,.5)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(mg,floorY);ctx.lineTo(W-mg,floorY);ctx.stroke();ctx.restore();
+    for(let i=0;i<N;i++) if(S.doors[i]){ const x=mg+i*cw;
+      ctx.save();ctx.strokeStyle=getC('--accent');ctx.lineWidth=2;ctx.fillStyle='rgba(255,180,84,.10)';
+      ctx.beginPath();ctx.rect(x+cw*0.16,floorY-40,cw*0.68,40);ctx.fill();ctx.stroke();ctx.restore(); }
+    const rx=mg+(S.truePos+0.5)*cw;
+    ctx.save();ctx.fillStyle=getC('--accent2');ctx.beginPath();ctx.arc(rx,floorY-9,7,0,7);ctx.fill();
+    ctx.fillStyle='#0a0e16';ctx.beginPath();ctx.arc(rx,floorY-9,2.5,0,7);ctx.fill();ctx.restore();
+    const baseY=H*0.84, maxBar=H*0.42, mx=Math.max(...S.bel,1e-6);
+    let best=0; for(let i=1;i<N;i++) if(S.bel[i]>S.bel[best])best=i;
+    for(let i=0;i<N;i++){ const x=mg+i*cw, h=Math.max(2,S.bel[i]/mx*maxBar);
+      ctx.fillStyle=i===best?'rgba(255,180,84,.85)':'rgba(45,212,212,.6)';
+      ctx.fillRect(x+cw*0.16, baseY-h, cw*0.68, h); }
+    ctx.save();ctx.strokeStyle='rgba(120,150,190,.3)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(mg,baseY);ctx.lineTo(W-mg,baseY);ctx.stroke();ctx.restore();
+    ctx.save();ctx.strokeStyle=getC('--accent2');ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+    ctx.strokeRect(mg+S.truePos*cw+cw*0.16, baseY-maxBar, cw*0.68, maxBar);ctx.restore();
+    ctx.save();ctx.fillStyle=getC('--faint');ctx.font='600 11px "Space Grotesk",sans-serif';ctx.textAlign='center';
+    ctx.fillText('corridor — orange doorways are landmarks, cyan dot = true robot', W/2, floorY-52);
+    ctx.fillText('belief  bel(x)   (dashed = true cell)', W/2, baseY+16);ctx.restore();
+    const ent=-S.bel.reduce((s,p)=>s+(p>1e-9?p*Math.log2(p):0),0);
+    RO.innerHTML=
+      ro('doors at','['+S.doors.map((d,i)=>d?i:null).filter(v=>v!==null).join(', ')+']','acc')+
+      ro('true cell',S.truePos,'acc2')+
+      '<div class="rline" style="margin-top:6px"><span>belief</span></div>'+
+      ro('most likely cell',best+(best===S.truePos?'  ✓':'  ✗'),'acc')+
+      ro('its probability',(S.bel[best]*100).toFixed(1)+'%','acc')+
+      ro('P(true cell)',(S.bel[S.truePos]*100).toFixed(1)+'%','acc2')+
+      ro('entropy',ent.toFixed(2)+' / '+Math.log2(N).toFixed(1)+' bits','')+
+      (S.bel[best]>0.5&&best===S.truePos
+        ? '<div class="verdict ok">Localized — belief is concentrated on the correct cell.</div>'
+        : '<div class="verdict warn">Still ambiguous. Sense at doors and move to exploit their unique spacing.</div>');
+  }
+};
+
+/* ---------- PARTICLE FILTER — 2D range-to-landmarks localization ---------- */
+modules.particle = {
+  title:'Particle Filter', is2D:true,
+  blurb:`A <b>particle filter</b> represents the belief not as a grid but as a swarm of <b>guesses</b> (Ch. 16.4) — cheap in large or continuous spaces. Each particle is a candidate position. Every step: (1) <b>move</b> every particle by the robot's odometry plus noise; (2) <b>weight</b> each by how well its predicted ranges to the known <b>landmarks</b> match the noisy measurement, <span class="k">w ∝ exp(−Σ(d−z)²/2σ²)</span>; (3) <b>resample</b> — particles with high weight are copied, poor ones die. The cloud quickly collapses onto the true robot and then tracks it. It is a <b>non-parametric</b> estimator, so it handles arbitrary, multi-peaked beliefs a Kalman filter cannot.`,
+  hint:'Particles (cyan) start scattered, then converge on the true robot (green) by matching ranges to the blue landmarks.',
+  s:{N:400, ss:0.25, sm:0.04, rough:0.03, lm:[{x:-2.6,y:2.3},{x:2.8,y:1.2},{x:0.1,y:-2.6}],
+     parts:null, tx:0,ty:0, t:0, neff:0, play:true},
+  path(t){ return [2.4*Math.sin(t*0.55), 2.0*Math.sin(t*0.8+0.7)]; },
+  scatter(){ const S=this.s,R=3.3,p=[]; for(let i=0;i<S.N;i++)p.push({x:(Math.random()*2-1)*R,y:(Math.random()*2-1)*R,w:1/S.N}); S.parts=p; const t0=this.path(S.t); S.tx=t0[0];S.ty=t0[1]; },
+  ensure(){ if(!this.s.parts)this.scatter(); },
+  controls(){
+    const S=this.s; this.ensure();
+    slider('particles',60,800,S.N,20,'acc',x=>{S.N=Math.round(x);this.scatter();},x=>x.toFixed(0));
+    slider('sensor noise σ',0.05,0.8,S.ss,0.01,'z',x=>S.ss=x);
+    slider('motion noise',0,0.2,S.sm,0.01,'y',x=>S.sm=x);
+    chips('',[{label:'⟲ scatter / reset',value:0}],()=>this.scatter());
+    if(!reduceMotion) toggle('play',S.play,v=>S.play=v);
+  },
+  draw(){
+    grid2();
+    const S=this.s; this.ensure();
+    if(S.play&&!reduceMotion){
+      S.t+=1/60;
+      const np=this.path(S.t), dx=np[0]-S.tx, dy=np[1]-S.ty; S.tx=np[0];S.ty=np[1];
+      for(const p of S.parts){ p.x+=dx+randn()*S.sm; p.y+=dy+randn()*S.sm; }   // predict
+      const z=S.lm.map(l=>Math.hypot(S.tx-l.x,S.ty-l.y)+randn()*S.ss);          // measure
+      let sum=0;
+      for(const p of S.parts){ let w=1;
+        for(let k=0;k<S.lm.length;k++){ const e=Math.hypot(p.x-S.lm[k].x,p.y-S.lm[k].y)-z[k]; w*=Math.exp(-e*e/(2*S.ss*S.ss)); }
+        p.w=w; sum+=w; }
+      if(sum>1e-12){ for(const p of S.parts)p.w/=sum;
+        let n2=0; for(const p of S.parts)n2+=p.w*p.w; S.neff=1/n2;
+        S.parts=resample(S.parts);
+        for(const p of S.parts){ p.x+=randn()*S.rough; p.y+=randn()*S.rough; }   // roughen
+      } else this.scatter();
+    }
+    // room
+    const a=w2s(-3.3,3.3), b=w2s(3.3,-3.3);
+    ctx.save();ctx.strokeStyle='rgba(120,150,190,.35)';ctx.lineWidth=2;ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.restore();
+    // measurement lines true->landmarks
+    ctx.save();ctx.strokeStyle='rgba(120,150,190,.18)';ctx.lineWidth=1;
+    S.lm.forEach(l=>{const A=w2s(S.tx,S.ty),B=w2s(l.x,l.y);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();});ctx.restore();
+    // particles
+    ctx.save();ctx.fillStyle='rgba(45,212,212,.55)';
+    for(const p of S.parts){const P=w2s(p.x,p.y);ctx.fillRect(P.x-1,P.y-1,2.5,2.5);}ctx.restore();
+    // landmarks (blue diamonds)
+    S.lm.forEach((l,i)=>{const P=w2s(l.x,l.y);ctx.save();ctx.translate(P.x,P.y);ctx.rotate(Math.PI/4);
+      ctx.fillStyle=getC('--z');ctx.fillRect(-6,-6,12,12);ctx.restore();
+      ctx.save();ctx.fillStyle=getC('--z');ctx.font='600 11px "Space Grotesk",sans-serif';ctx.fillText('L'+(i+1),P.x+10,P.y-8);ctx.restore();});
+    // estimate = mean of particles
+    let ex=0,ey=0; for(const p of S.parts){ex+=p.x;ey+=p.y;} ex/=S.parts.length; ey/=S.parts.length;
+    const E=w2s(ex,ey);
+    ctx.save();ctx.strokeStyle=getC('--accent');ctx.lineWidth=2;ctx.beginPath();ctx.arc(E.x,E.y,10,0,7);ctx.stroke();ctx.restore();
+    // true robot (green)
+    const T=w2s(S.tx,S.ty);
+    ctx.save();ctx.fillStyle=getC('--y');ctx.beginPath();ctx.arc(T.x,T.y,6,0,7);ctx.fill();
+    ctx.fillStyle='#0a0e16';ctx.beginPath();ctx.arc(T.x,T.y,2.5,0,7);ctx.fill();ctx.restore();
+    // spread (stddev) for verdict
+    let v=0; for(const p of S.parts)v+=(p.x-ex)**2+(p.y-ey)**2; const spread=Math.sqrt(v/S.parts.length);
+    const err=Math.hypot(ex-S.tx,ey-S.ty);
+    RO.innerHTML=
+      ro('particles',S.parts.length,'acc2')+
+      ro('landmarks',S.lm.length,'z')+
+      ro('sensor noise σ',S.ss.toFixed(2)+' u','')+
+      '<div class="rline" style="margin-top:6px"><span>estimate</span></div>'+
+      ro('estimate error',err.toFixed(2)+' u','acc')+
+      ro('cloud spread',spread.toFixed(2)+' u','acc2')+
+      ro('effective N','≈ '+S.neff.toFixed(0)+' / '+S.parts.length,'')+
+      (spread<0.6
+        ? '<div class="verdict ok">Converged — the swarm has localized and is tracking the true robot.</div>'
+        : '<div class="verdict warn">Still spread out — resampling is concentrating particles onto likely poses.</div>');
+  }
+};
+
+/* ---------- SLAM — graph-based, with loop closure ---------- */
+modules.slam = {
+  title:'SLAM (Loop Closure)', is2D:true,
+  blurb:`<b>SLAM</b> — Simultaneous Localization And Mapping — is the chicken-and-egg problem at the heart of mobile robotics (Ch. 17): to build a map you must know where you are, but to know where you are you need a map. The robot does <b>both at once</b>.
+On <b>odometry alone</b>, small wheel errors accumulate (Ch. 15) and the estimated path <b>drifts</b> from truth, dragging every landmark it records along with it — the map smears.
+The cure is a <b>loop closure</b>: when the robot re-recognizes a landmark it saw before, it gets a hard constraint — “I'm back where I started.” <b>Graph-based SLAM</b> casts poses as nodes and measurements as edges (springs) and finds the configuration that minimizes total weighted error,
+<span class="k">x* = argmin Σ e<sub>ij</sub><sup>T</sup> Ω<sub>ij</sub> e<sub>ij</sub></span>.
+Closing the loop pulls the graph taut, <b>redistributing the accumulated error backward along the trajectory</b> so the path snaps shut and the landmarks settle onto their true places. Watch drift build over a lap, then collapse the instant the loop closes.`,
+  hint:'Cyan = SLAM estimate (drifting); faint gray/blue = ground truth. At each loop closure the path & map snap onto truth.',
+  s:{A:2.6,B:1.9, drift:0.6, lm:null, s:0, ex:0,ey:0, bx:0,by:0, estPath:null, map:null, closeFlash:0, lastGap:0, showTruth:true, play:true},
+  truePose(s){ const a=2*Math.PI*s; return [this.s.A*Math.cos(a), this.s.B*Math.sin(a)]; },
+  newLap(x,y){ const S=this.s; S.ex=x;S.ey=y;S.s=0;S.estPath=[{x:x,y:y}];   // per-lap systematic odometry bias (accumulates ~linearly)
+    S.bx=(Math.random()*2-1)*S.drift*0.008; S.by=(Math.random()*2-1)*S.drift*0.008; },
+  reset(){ const S=this.s; const p=this.truePose(0); this.newLap(p[0],p[1]); S.map={};S.closeFlash=0; },
+  ensure(){ const S=this.s; if(!S.lm){ S.lm=[]; for(let k=0;k<6;k++){const a=k*Math.PI/3; S.lm.push([1.35*S.A*Math.cos(a),1.35*S.B*Math.sin(a)]);} } if(!S.estPath)this.reset(); },
+  closeLoop(){ const S=this.s,n=S.estPath.length-1; if(n<1)return;
+    const gx=S.estPath[n].x-S.estPath[0].x, gy=S.estPath[n].y-S.estPath[0].y;
+    for(let i=0;i<=n;i++){ const f=i/n; S.estPath[i].x-=f*gx; S.estPath[i].y-=f*gy; }
+    for(const id in S.map){ const f=S.map[id].anchor/n; S.map[id].x-=f*gx; S.map[id].y-=f*gy; }
+    S.closeFlash=1.4; S.lastGap=Math.hypot(gx,gy);
+  },
+  controls(){
+    const S=this.s; this.ensure();
+    slider('odometry drift',0.1,1.5,S.drift,0.05,'z',x=>S.drift=x,x=>(x).toFixed(2));
+    chips('',[{label:'⟲ reset run',value:0}],()=>this.reset());
+    toggle('show ground truth',S.showTruth,v=>S.showTruth=v);
+    if(!reduceMotion) toggle('drive',S.play,v=>S.play=v);
+  },
+  draw(){
+    grid2();
+    const S=this.s; this.ensure();
+    if(S.play&&!reduceMotion){
+      if(S.closeFlash>0){ S.closeFlash-=1/60; if(S.closeFlash<=0){ const c=S.estPath[S.estPath.length-1]; this.newLap(c.x,c.y); } }
+      else { const ds=1/420, a=this.truePose(S.s), b=this.truePose(S.s+ds);
+        const dx=b[0]-a[0], dy=b[1]-a[1];
+        S.ex+=dx+S.bx+randn()*S.drift*0.004;               // odometry = true step + systematic bias + jitter
+        S.ey+=dy+S.by+randn()*S.drift*0.004;
+        S.estPath.push({x:S.ex,y:S.ey});
+        S.lm.forEach((L,id)=>{ if(Math.hypot(b[0]-L[0],b[1]-L[1])<1.7)
+          S.map[id]={x:S.ex+(L[0]-b[0]), y:S.ey+(L[1]-b[1]), anchor:S.estPath.length-1}; });   // observe -> map (drifted)
+        S.s+=ds; if(S.s>=1)this.closeLoop();
+      }
+    }
+    const tp=this.truePose(S.s>=1?0:S.s), closed=S.closeFlash>0;
+    // ground truth (faint)
+    if(S.showTruth){
+      ctx.save();ctx.strokeStyle='rgba(120,150,190,.3)';ctx.lineWidth=1.5;ctx.setLineDash([2,4]);ctx.beginPath();
+      for(let i=0;i<=90;i++){const p=this.truePose(i/90),P=w2s(p[0],p[1]);i?ctx.lineTo(P.x,P.y):ctx.moveTo(P.x,P.y);}ctx.closePath();ctx.stroke();ctx.restore();
+      S.lm.forEach(L=>{const P=w2s(L[0],L[1]);ctx.save();ctx.translate(P.x,P.y);ctx.rotate(Math.PI/4);ctx.strokeStyle='rgba(77,140,255,.5)';ctx.lineWidth=1.5;ctx.strokeRect(-5,-5,10,10);ctx.restore();});
+      const Tt=w2s(tp[0],tp[1]);ctx.save();ctx.fillStyle='rgba(120,150,190,.5)';ctx.beginPath();ctx.arc(Tt.x,Tt.y,4,0,7);ctx.fill();ctx.restore();
+    }
+    // estimated (SLAM) path
+    if(S.estPath.length>1){ctx.save();ctx.strokeStyle=closed?getC('--y'):'rgba(45,212,212,.8)';ctx.lineWidth=closed?3:2;
+      ctx.beginPath();S.estPath.forEach((p,i)=>{const P=w2s(p.x,p.y);i?ctx.lineTo(P.x,P.y):ctx.moveTo(P.x,P.y);});ctx.stroke();ctx.restore();}
+    // estimated landmarks (the map)
+    let mapErr=0,mc=0;
+    for(const id in S.map){ const m=S.map[id],L=S.lm[id],P=w2s(m.x,m.y);
+      if(S.showTruth){const Q=w2s(L[0],L[1]);ctx.save();ctx.strokeStyle='rgba(255,180,84,.25)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(P.x,P.y);ctx.lineTo(Q.x,Q.y);ctx.stroke();ctx.restore();}
+      ctx.save();ctx.translate(P.x,P.y);ctx.rotate(Math.PI/4);ctx.fillStyle=closed?getC('--y'):getC('--accent');ctx.fillRect(-5,-5,10,10);ctx.restore();
+      mapErr+=Math.hypot(m.x-L[0],m.y-L[1]); mc++;
+    }
+    if(mc)mapErr/=mc;
+    // estimated robot (head of path)
+    const e=S.estPath[S.estPath.length-1], E=w2s(e.x,e.y);
+    ctx.save();ctx.fillStyle=closed?getC('--y'):getC('--accent2');ctx.beginPath();ctx.arc(E.x,E.y,7,0,7);ctx.fill();
+    ctx.fillStyle='#0a0e16';ctx.beginPath();ctx.arc(E.x,E.y,2.5,0,7);ctx.fill();ctx.restore();
+    if(closed){ctx.save();ctx.fillStyle=getC('--y');ctx.font='600 14px "Space Grotesk",sans-serif';ctx.textAlign='center';ctx.fillText('LOOP CLOSED',W/2,38);ctx.restore();}
+    const robotErr=Math.hypot(e.x-tp[0],e.y-tp[1]);
+    RO.innerHTML=
+      ro('odometry drift',S.drift.toFixed(2),'')+
+      ro('lap progress',(Math.min(S.s,1)*100).toFixed(0)+'%','')+
+      ro('landmarks mapped',mc+' / '+S.lm.length,'acc')+
+      '<div class="rline" style="margin-top:6px"><span>estimate vs. ground truth</span></div>'+
+      ro('robot drift error',robotErr.toFixed(2)+' u','acc2')+
+      ro('avg map error',mapErr.toFixed(2)+' u','acc2')+
+      (S.lastGap?ro('last loop-closure gap',S.lastGap.toFixed(2)+' u','acc'):'')+
+      (closed
+        ? '<div class="verdict ok">Loop closed — the closure error was redistributed along the trajectory, snapping path &amp; map onto truth.</div>'
+        : '<div class="verdict warn">Driving on odometry — drift bends the path and smears the map. A loop closure will correct it.</div>');
+  }
+};
+
+/* small readout helpers */
+function ro(k,v,cls){ return '<div class="rline"><span>'+k+'</span><span class="v '+(cls||'')+'">'+v+'</span></div>'; }
+/* standard-normal sample (Box–Muller) and low-variance resampler for the particle filter */
+function randn(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function resample(parts){ const N=parts.length,out=[]; const step=1/N; let r=Math.random()*step, c=parts[0].w, i=0;
+  for(let m=0;m<N;m++){ const U=r+m*step; while(U>c&&i<N-1){ i++; c+=parts[i].w; } out.push({x:parts[i].x,y:parts[i].y,w:step}); }
+  return out;
+}
+/* a real bracketed matrix/vector: cellsHtml = concatenated <span> cells, cols = column count */
+function matEq(cellsHtml, cols, brk){
+  brk = brk || getC('--accent');
+  return '<div class="mateq"><div class="brk l" style="border-color:'+brk+'"></div>'+
+    '<div class="mgrid" style="grid-template-columns:repeat('+cols+',auto)">'+cellsHtml+'</div>'+
+    '<div class="brk r" style="border-color:'+brk+'"></div></div>';
+}
+function vecRow(v,cls){
+  const brk = cls==='acc2'?getC('--accent2'):getC('--accent');
+  const c='<span style="color:var(--x)">'+fmt(v[0])+'</span>'+
+          '<span style="color:var(--y)">'+fmt(v[1])+'</span>'+
+          '<span style="color:var(--z)">'+fmt(v[2])+'</span>';
+  return matEq(c,1,brk);
+}
+function matrix4(R,t){
+  let c='';
+  for(let i=0;i<3;i++){ for(let j=0;j<3;j++)c+='<span>'+fmt(R[i][j])+'</span>'; c+='<span style="color:var(--accent)">'+fmt(t[i])+'</span>'; }
+  c+='<span>0</span><span>0</span><span>0</span><span>1</span>';
+  return matEq(c,4);
+}
+/* leading prescript {}^sup_sub (e.g. for ${}^A_B T$ transform notation) */
+function preT(sup,sub){ return '<span class="ps"><span class="u">'+sup+'</span><span class="d">'+sub+'</span></span>'; }
+/* draw a differential-wheel robot at (x,y) heading th, body width d, wheel radius r */
+function drawDiffRobot(x,y,th,d,r){
+  const c=w2s(x,y);
+  const hx=Math.cos(th),hy=Math.sin(th);    // heading direction
+  const px=-Math.sin(th),py=Math.cos(th);   // left/perpendicular direction
+  ctx.save();ctx.fillStyle='rgba(255,180,84,.12)';ctx.strokeStyle=getC('--accent');ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(c.x,c.y,d/2*PPU,0,7);ctx.fill();ctx.stroke();ctx.restore();
+  [[1,getC('--y')],[-1,getC('--x')]].forEach(([sgn,col])=>{   // left wheel green, right wheel red
+    const wx=x+px*sgn*d/2, wy=y+py*sgn*d/2;
+    line2(w2s(wx-hx*r,wy-hy*r), w2s(wx+hx*r,wy+hy*r), col, 5);
+  });
+  arrow2w(x,y,x+hx*d*0.7,y+hy*d*0.7,getC('--accent2'),2.5);
+}
+
+/* ============================ shell ============================== */
+const order=['vectors','dot','cross','frames','rotations','matrix','eigen',
+  'fk','dh','ik','workspace','singularity','diffdrive','mobileik','trajectory','markov','particle','slam'];
+const labels={vectors:'Vectors',dot:'Dot Product',cross:'Cross Product',frames:'Frames & Transforms',
+  rotations:'Rotations',matrix:'Matrices as Maps',eigen:'Eigenvectors',
+  fk:'Forward Kinematics',dh:'DH Parameters',ik:'Inverse Kinematics',workspace:'Workspace',
+  singularity:'Singularities',diffdrive:'Differential Drive',mobileik:'Mobile Inverse Kinematics',
+  trajectory:'Motion Profiles',markov:'Markov Localization',particle:'Particle Filter',slam:'SLAM (Loop Closure)'};
+let active='vectors';
+const navEl=document.getElementById('nav');
+order.forEach((k,i)=>{
+  const b=document.createElement('button');
+  b.innerHTML='<span class="n">'+String(i+1).padStart(2,'0')+'</span>'+labels[k];
+  b.onclick=()=>select(k); b.dataset.key=k; navEl.append(b);
+});
+function select(k){
+  active=k; const m=modules[k];
+  document.getElementById('modTitle').textContent=m.title;
+  document.getElementById('modBlurb').innerHTML=m.blurb;
+  document.getElementById('hint').textContent=m.hint||'';
+  document.getElementById('seqLabel').textContent='module '+(order.indexOf(k)+1)+' / '+order.length;
+  C.innerHTML=''; RO.innerHTML='';
+  m.controls&&m.controls();
+  [...navEl.children].forEach(b=>b.setAttribute('aria-current', b.dataset.key===k));
+  computeView(m);
+}
+function computeView(m){
+  if(m.is2D){ PPU = Math.min(W,H)/9.0; }
+}
+
+/* pointer interaction */
+let pdown=false,lastx=0,lasty=0;
+cv.addEventListener('pointerdown',e=>{
+  cv.setPointerCapture(e.pointerId); pdown=true; lastx=e.offsetX; lasty=e.offsetY;
+  cv.classList.add('dragging');
+  const m=modules[active];
+  if(m.is2D&&m.pointerDown){const [wx,wy]=s2w(e.offsetX,e.offsetY); m.pointerDown(wx,wy);}
+});
+cv.addEventListener('pointermove',e=>{
+  if(!pdown)return;
+  const m=modules[active];
+  if(m.is2D){ if(m.pointerMove){const [wx,wy]=s2w(e.offsetX,e.offsetY); m.pointerMove(wx,wy);} }
+  else { cam.theta -= (e.offsetX-lastx)*0.008; cam.phi=clamp(cam.phi+(e.offsetY-lasty)*0.008,rad(-85),rad(85)); }
+  lastx=e.offsetX; lasty=e.offsetY;
+});
+function enddrag(){pdown=false;cv.classList.remove('dragging');const m=modules[active];if(m.is2D&&m.pointerUp)m.pointerUp();}
+cv.addEventListener('pointerup',enddrag);
+cv.addEventListener('pointercancel',enddrag);
+
+/* render loop */
+function frame(){
+  ctx.clearRect(0,0,W,H);
+  const m=modules[active];
+  computeView(m);
+  m.draw();
+  requestAnimationFrame(frame);
+}
+resize(); select('vectors'); requestAnimationFrame(frame);
+window.addEventListener('resize',()=>{resize();});
+</script>
+</body>
+</html>
