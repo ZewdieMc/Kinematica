@@ -248,6 +248,23 @@ function ring3(center,axis,r,color,w=2){
     if(started)ctx.lineTo(P.x,P.y); else {ctx.moveTo(P.x,P.y);started=true;} }
   ctx.stroke(); ctx.restore();
 }
+/* sweep an arc: start direction `from` rotated about unit `axis` by `ang`, drawn at `center` */
+function arc3(center,axis,from,ang,r,color,w=2.4,label){
+  const k=V.norm(axis); const v0=V.norm(from);
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=w; ctx.beginPath();
+  const N=Math.max(6,Math.round(Math.abs(ang)/(Math.PI*2)*72)); let started=false, mid=null;
+  for(let i=0;i<=N;i++){ const t=ang*i/N, ct=Math.cos(t), st=Math.sin(t);
+    const kxv=V.cross(k,v0), kdv=V.dot(k,v0);
+    const dir=[v0[0]*ct+kxv[0]*st+k[0]*kdv*(1-ct),
+               v0[1]*ct+kxv[1]*st+k[1]*kdv*(1-ct),
+               v0[2]*ct+kxv[2]*st+k[2]*kdv*(1-ct)];
+    const p=[center[0]+r*dir[0],center[1]+r*dir[1],center[2]+r*dir[2]];
+    if(i===Math.round(N/2))mid=p;
+    const P=project(p); if(!P.vis){started=false;continue;}
+    if(started)ctx.lineTo(P.x,P.y); else {ctx.moveTo(P.x,P.y);started=true;} }
+  ctx.stroke(); ctx.restore();
+  if(label&&mid)label3(mid,label,color,6,-4);
+}
 function grid3(G=4,step=1){
   for(let i=-G;i<=G;i+=step){
     const c=(i===0)?'rgba(120,150,190,0.28)':'rgba(120,150,190,0.12)';
@@ -915,11 +932,21 @@ This is the <i>easy</i> direction: the map <span class="k">r = f(q)</span> is ex
 /* ---------- 09 DH PARAMETERS (3D, articulated arm) ---------- */
 modules.dh = {
   title:'DH Parameters', is3D:true,
-  blurb:`<b>Denavit–Hartenberg</b> is the de-facto recipe (Ch. 3.1.2) for scaling forward kinematics to multi-link arms. Attach a frame to each joint — z along the joint axis, x along the common normal — then describe each link with just <b>four numbers</b>: link length <span class="k">a</span>, link twist <span class="k">α</span>, link offset <span class="k">d</span>, and joint angle <span class="k">θ</span>. Two describe the link itself, two describe its connection to the next. Each table row collapses into one homogeneous step
-<span class="k">Aᵢ = Tz(d)·Rz(θ)·Tx(a)·Rx(α)</span>,
-a 4×4 matrix holding a rotation R and a translation t. Multiply the rows top-to-bottom — <span class="k">⁰T₃ = A₁·A₂·A₃</span> — and the bottom frame {3} is the tool. For a <b>revolute</b> joint only θ varies; for a <b>prismatic</b> joint only d does. Everything else is fixed by the mechanism.`,
-  hint:'Drag to orbit. Turn the joints (θ); each table row is one frame hop {i−1}→{i}.',
-  s:{t1:30,t2:35,t3:-40},
+  blurb:`<b>Denavit–Hartenberg</b> is the standard recipe (Ch. 3.1.2) for forward kinematics of a multi-link arm. The trick: instead of inventing a fresh 6-number transform between every pair of links, DH proves you only ever need <b>four</b>, by <b>constraining how the frames are placed</b>.<br><br>
+<b>The frame-assignment rules.</b> Put a frame on every joint with two rules:<br>
+&nbsp;• <span class="k">zᵢ</span> = the axis joint <i>i+1</i> rotates about (or slides along).<br>
+&nbsp;• <span class="k">xᵢ</span> = the <b>common normal</b> — the unique shortest line that meets both <span class="k">zᵢ₋₁</span> and <span class="k">zᵢ</span> at right angles. (yᵢ just completes the right hand.)<br>
+Pinning x to the common normal is what kills the two extra numbers: it forces the x-axes to already line up, so a single rotation + slide along z and a single rotation + slide along x is enough to hop from one frame to the next.<br><br>
+<b>The four parameters</b> (read straight off the picture for hop {i−1}→{i}):<br>
+&nbsp;• <span class="k">θ</span> <b>joint angle</b> — rotate <span class="k">xᵢ₋₁</span> about <span class="k">zᵢ₋₁</span> until it points along <span class="k">xᵢ</span>.<br>
+&nbsp;• <span class="k">d</span> <b>link offset</b> — then slide along <span class="k">zᵢ₋₁</span> until you meet the common normal.<br>
+&nbsp;• <span class="k">a</span> <b>link length</b> — then slide along <span class="k">xᵢ</span> by the joint-axis distance.<br>
+&nbsp;• <span class="k">α</span> <b>link twist</b> — finally rotate about <span class="k">xᵢ</span> until <span class="k">zᵢ₋₁</span> tilts onto <span class="k">zᵢ</span>.<br><br>
+<b>Two about z, then two about x</b> — that order is the whole convention. Composed, the hop is one 4×4 matrix <span class="k">Aᵢ = Rz(θ)·Tz(d)·Tx(a)·Rx(α)</span>.<br><br>
+A <b>revolute</b> joint varies only <span class="k">θ</span>; a <b>prismatic</b> joint varies only <span class="k">d</span>; the rest is fixed steel. Multiply the rows top-to-bottom — <span class="k">⁰T₃ = A₁·A₂·A₃</span> — and frame {3} is the tool.<br><br>
+<b>Use the decompose control below</b> to freeze one hop and watch the four moves happen one at a time: the magenta <span class="k">d</span> slide along z, the cyan <span class="k">a</span> slide along the common normal, the <span class="k">θ</span> and <span class="k">α</span> sweep arcs.`,
+  hint:'Drag to orbit. Turn the joints (θ). Use “decompose hop” to inspect θ→d→a→α for one row.',
+  s:{t1:30,t2:35,t3:-40, focus:0},
   rows(){const S=this.s;return [
     {th:rad(S.t1),d:1.2,a:0,  al:rad(90),thd:S.t1},
     {th:rad(S.t2),d:0,  a:2.0,al:0,      thd:S.t2},
@@ -930,47 +957,85 @@ a 4×4 matrix holding a rotation R and a translation t. Multiply the rows top-to
     slider('θ₁ (joint 1)',-180,180,S.t1,1,'x',x=>S.t1=x,x=>x+'°');
     slider('θ₂ (joint 2)',-180,180,S.t2,1,'y',x=>S.t2=x,x=>x+'°');
     slider('θ₃ (joint 3)',-180,180,S.t3,1,'z',x=>S.t3=x,x=>x+'°');
+    const row=chips('decompose hop',[
+      {label:'Off',value:0},{label:'A₁ {0}→{1}',value:1},
+      {label:'A₂ {1}→{2}',value:2},{label:'A₃ {2}→{3}',value:3}],
+      (val,b,r)=>{S.focus=val;[...r.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');});
+    [...row.children][S.focus].classList.add('on');
   },
   draw(){
     grid3();axes3();
-    const rows=this.rows();
+    const S=this.s, rows=this.rows();
     let M=mat4identity();
     const frames=[mat4identity()];
     rows.forEach(r=>{M=mat4mul(M,dhMat(r.th,r.d,r.a,r.al));frames.push(M);});
+    const dim=S.focus>0;
     // links between consecutive frame origins
     for(let i=0;i<frames.length-1;i++){
       const A=project(mat4origin(frames[i])),B=project(mat4origin(frames[i+1]));
-      if(A.vis&&B.vis)line2(A,B,'rgba(230,237,246,.5)',5);
+      if(A.vis&&B.vis)line2(A,B,dim?'rgba(230,237,246,.16)':'rgba(230,237,246,.5)',5);
     }
     // frame triads + joint markers
     frames.forEach((F,i)=>{
       const o=mat4origin(F),last=(i===frames.length-1),s=last?0.85:0.6;
+      const faded=dim && i!==S.focus-1 && i!==S.focus;
+      const al=faded?0.22:1; ctx.save(); ctx.globalAlpha=al;
       arrow3(o,V.add(o,V.scale(mat4axis(F,0),s)),getC('--x'),2.2);
       arrow3(o,V.add(o,V.scale(mat4axis(F,1),s)),getC('--y'),2.2);
       arrow3(o,V.add(o,V.scale(mat4axis(F,2),s)),getC('--z'),2.2);
+      ctx.restore();
       const P=project(o);
-      if(P.vis){ctx.save();ctx.fillStyle=last?getC('--accent'):'#0a0e16';
+      if(P.vis){ctx.save();ctx.globalAlpha=al;ctx.fillStyle=last?getC('--accent'):'#0a0e16';
         ctx.strokeStyle=getC('--accent2');ctx.lineWidth=2;
         ctx.beginPath();ctx.arc(P.x,P.y,last?7:5,0,7);ctx.fill();ctx.stroke();
         ctx.fillStyle=getC('--dim');ctx.font='600 11px "Space Grotesk", sans-serif';
         ctx.fillText('{'+i+'}',P.x+9,P.y+4);ctx.restore();}
     });
+    // ---- decomposition overlay for the focused hop ----
+    let detailHtml='';
+    if(S.focus>0){
+      const r=rows[S.focus-1], Fp=frames[S.focus-1];
+      const R1=mat4mul(Fp,dhMat(r.th,0,0,0));   // after Rz(θ)
+      const R2=mat4mul(R1,dhMat(0,r.d,0,0));     // after Tz(d)
+      const R3=mat4mul(R2,dhMat(0,0,r.a,0));     // after Tx(a)  == origin of {i}
+      const P0=mat4origin(Fp), Pd=mat4origin(R2), Pi=mat4origin(R3);
+      const zPrev=mat4axis(Fp,2), xPrev=mat4axis(Fp,0), xNew=mat4axis(R3,0), xi=mat4axis(frames[S.focus],0);
+      const mag=getC('--accent'), cyan=getC('--accent2');
+      // θ arc about z_{i-1}
+      if(Math.abs(r.th)>1e-3) arc3(P0,zPrev,xPrev,r.th,0.55,getC('--x'),2.6,'θ '+fmt(r.thd,0)+'°');
+      // d slide along z_{i-1}
+      if(Math.abs(r.d)>1e-3){ const A=project(P0),B=project(Pd);
+        if(A.vis&&B.vis)line2(A,B,mag,5); label3(V.scale(V.add(P0,Pd),0.5),'d '+fmt(r.d),mag,8,-6); }
+      // a slide along common normal x_i
+      if(Math.abs(r.a)>1e-3){ const A=project(Pd),B=project(Pi);
+        if(A.vis&&B.vis)line2(A,B,cyan,5); label3(V.scale(V.add(Pd,Pi),0.5),'a '+fmt(r.a),cyan,8,10); }
+      // α twist about x_i
+      if(Math.abs(r.al)>1e-3) arc3(Pi,xi,zPrev,r.al,0.6,getC('--z'),2.6,'α '+fmt(deg(r.al),0)+'°');
+      const jtype = (S.focus===1)?'this row uses a 90° twist α to stand the arm up':'planar hop (α = 0)';
+      detailHtml=
+        '<div class="rline" style="margin-top:8px"><span>hop A'+S.focus+' : {'+(S.focus-1)+'} → {'+S.focus+'}</span></div>'+
+        ro('θ  rotate about zᵢ₋₁',fmt(r.thd,0)+'°','x')+
+        ro('d  slide along zᵢ₋₁',fmt(r.d),'acc')+
+        ro('a  slide along xᵢ',fmt(r.a),'acc2')+
+        ro('α  twist about xᵢ',fmt(deg(r.al),0)+'°','z')+
+        '<div class="verdict ok">Aᵢ = Rz(θ)·Tz(d)·Tx(a)·Rx(α) — '+jtype+'.</div>';
+    }
     const ee=mat4origin(frames[frames.length-1]);
     // DH table (self-contained 4-column grid)
     let tbl='<div class="rline"><span>DH table</span></div>'+
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px 10px;'+
       'font-family:var(--mono);font-size:11.5px;text-align:right;margin:4px 0 2px;'+
       'border-left:2px solid var(--accent2);padding:8px 12px;background:rgba(45,212,212,.05);border-radius:0 6px 6px 0">'+
-      '<span style="color:var(--faint)">α</span><span style="color:var(--faint)">a</span>'+
-      '<span style="color:var(--faint)">d</span><span style="color:var(--faint)">θ</span>';
-    rows.forEach(r=>{tbl+=
-      '<span>'+fmt(deg(r.al),0)+'°</span><span>'+fmt(r.a)+'</span><span>'+fmt(r.d)+'</span>'+
-      '<span style="color:var(--accent)">'+fmt(r.thd,0)+'°</span>';});
+      '<span style="color:var(--faint)">θ</span><span style="color:var(--faint)">d</span>'+
+      '<span style="color:var(--faint)">a</span><span style="color:var(--faint)">α</span>';
+    rows.forEach((r,i)=>{const hot=(S.focus===i+1);
+      tbl+='<span style="color:'+(hot?'var(--accent)':'var(--text)')+'">'+fmt(r.thd,0)+'°</span>'+
+      '<span>'+fmt(r.d)+'</span><span>'+fmt(r.a)+'</span><span>'+fmt(deg(r.al),0)+'°</span>';});
     tbl+='</div>';
-    RO.innerHTML=tbl+
+    RO.innerHTML=tbl+ detailHtml+
       '<div class="rline" style="margin-top:6px"><span>end-effector {3}</span></div>'+
       vecRow(ee,'acc')+
-      '<div class="verdict ok">FK = A₁·A₂·A₃. Each row is one 4×4 hop; four numbers per joint describe the whole robot.</div>';
+      (S.focus>0?'':'<div class="verdict ok">FK = A₁·A₂·A₃. Each row is one 4×4 hop; four numbers per joint describe the whole robot.</div>');
   }
 };
 
