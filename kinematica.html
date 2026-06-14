@@ -653,7 +653,19 @@ modules.matrix = {
 /* ---------- 06 EIGENVECTORS (2D) ---------- */
 modules.eigen = {
   title:'Eigenvectors', is2D:true,
-  blurb:`Most vectors get <b>knocked off their line</b> when a matrix acts on them. <b>Eigenvectors</b> are the rare directions that <b>stay on their own line</b> — only stretched or squished by a factor λ, the <b>eigenvalue</b>. Watch the spinning input <span class="k">v</span> and its image <span class="k">Av</span>: when they line up, you've found an eigenvector. (A pure rotation has none — nothing keeps its direction.)`,
+  blurb:`<b>The geometric picture (3Blue1Brown, Essence of Linear Algebra Ch. 14).</b> A matrix is a transformation that moves every vector. Pick almost any vector and the transformation <b>knocks it off the line it spans</b> — it rotates to point somewhere new.<br><br>
+<b>Eigenvectors</b> are the special vectors that <b>stay on their own span</b>. The transformation may stretch or squish them, or flip them around, but they remain on the same line through the origin. The factor they're scaled by is the <b>eigenvalue</b> <span class="k">λ</span>. That's the whole definition, in one equation:<br>
+<span class="k">A v = λ v</span> &nbsp;— "the matrix acting on v does the same thing as just scaling v by a number."<br><br>
+<b>Why this matters.</b> The video's best example is a 3D rotation: its eigenvector (with <span class="k">λ = 1</span>) is the <b>axis of rotation</b> — finding the eigenvector is far easier than digging the axis out of the rotation matrix. More generally, understanding a transformation through its eigenvectors beats reading the raw columns, because the columns depend on your coordinate system while the eigenvectors are intrinsic to the transformation.<br><br>
+<b>How to find them.</b> Rewrite <span class="k">A v = λ v</span> as <span class="k">(A − λI) v = 0</span>. We want a <b>non-zero</b> v, so the matrix <span class="k">(A − λI)</span> must squish some non-zero vector to zero — i.e. it collapses space to a lower dimension (look at the <span class="k">Matrices as Maps</span> tab: that's a rank drop). A square matrix does that exactly when its determinant is zero:<br>
+<span class="k">det(A − λI) = 0</span> &nbsp;— the <b>characteristic equation</b>. For a 2×2 it expands to <span class="k">λ² − (a+d)λ + (ad−bc) = 0</span>: trace and determinant. Each root is an eigenvalue; plug it back into <span class="k">(A − λI)v = 0</span> to get its eigenvector line.<br><br>
+<b>Reading the cases.</b><br>
+&nbsp;• <b>Stretch / Saddle</b> — two real eigenvalues, two fixed lines (drawn dashed).<br>
+&nbsp;• <b>Shear</b> — only the x-axis survives (<span class="k">λ = 1</span>); a repeated eigenvalue with a single eigenline.<br>
+&nbsp;• <b>Scaling</b> (λI) — <i>every</i> vector is an eigenvector; the whole plane is fixed in direction.<br>
+&nbsp;• <b>Rotation</b> — no vector keeps its direction, so the eigenvalues come out <b>complex</b> (the imaginary part encodes the rotation).<br><br>
+When a full set of eigenvectors exists they form an <b>eigenbasis</b>: in those coordinates the matrix is diagonal, which makes powers and exponentials trivial — the trick behind PCA, vibration modes, and the manipulability ellipse you'll meet in <span class="k">Singularities</span>.<br><br>
+<b>Watch it:</b> the spinning input <span class="k">v</span> and its image <span class="k">Av</span> line up exactly when v hits an eigen-direction. Full video: <a href="https://youtu.be/PFDu9oVAE-g" target="_blank" rel="noopener" style="color:var(--accent2)">youtu.be/PFDu9oVAE-g</a>.`,
   hint:'Drag to set the input vector, or let it sweep automatically.',
   s:{a:2,b:1,c:1,d:2, ang:rad(20), auto:true, drag:false},
   controls(){
@@ -666,6 +678,7 @@ modules.eigen = {
     chips('presets',[
       {label:'Stretch',value:[2,1,1,2]},
       {label:'Shear',value:[1,1,0,1]},
+      {label:'Scaling',value:[1.6,0,0,1.6]},
       {label:'Rotation',value:[Math.cos(rad(40)),-Math.sin(rad(40)),Math.sin(rad(40)),Math.cos(rad(40))]},
       {label:'Saddle',value:[2,0,0,-1]},
     ],v=>{S.a=v[0];S.b=v[1];S.c=v[2];S.d=v[3];});
