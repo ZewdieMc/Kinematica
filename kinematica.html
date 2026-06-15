@@ -55,7 +55,11 @@
   .nav button[aria-current="true"] .n{color:var(--accent)}
 
   /* main */
-  .main{flex:1 1 auto; display:grid; grid-template-columns:1fr 440px; min-height:0}
+  .main{flex:1 1 auto; display:grid; grid-template-columns:1fr 7px var(--side-w,440px); min-height:0}
+  .resizer{cursor:col-resize; position:relative; z-index:5; touch-action:none}
+  .resizer::before{content:""; position:absolute; inset:0 2px; border-radius:3px;
+    background:var(--line); transition:background .15s}
+  .resizer:hover::before, .resizer.active::before{background:var(--accent)}
   .stage{position:relative; min-width:0; min-height:0}
   canvas{display:block; width:100%; height:100%; touch-action:none; cursor:grab}
   canvas.dragging{cursor:grabbing}
@@ -131,6 +135,7 @@
   @media (max-width:980px){
     .main{grid-template-columns:1fr; grid-template-rows:minmax(280px,46vh) 1fr}
     .side{border-left:none; border-top:1px solid var(--line)}
+    .resizer{display:none}
     .hint{max-width:80%}
   }
 </style>
@@ -148,6 +153,7 @@
       <canvas id="cv"></canvas>
       <div class="hint" id="hint"></div>
     </div>
+    <div class="resizer" id="resizer" title="Drag to resize · double-click to reset"></div>
     <aside class="side">
       <div class="sec">
         <h2 id="modTitle">—</h2>
@@ -323,6 +329,17 @@ function eigSym(a,b,d){
   let v1; if(Math.abs(b)>1e-9) v1=V.norm([l1-d,b]); else v1=(a>=d)?[1,0]:[0,1];
   const v2=[-v1[1],v1[0]];
   return {l1,l2,v1,v2};
+}
+/* SVD of a 2x2  A=[[a,b],[c,d]]  ->  A = U·diag(s1,s2)·Vᵀ  (s1>=s2>=0) */
+function svd2(a,b,c,d){
+  // right singular vectors = eigenvectors of AᵀA
+  const p=a*a+c*c, q=a*b+c*d, r=b*b+d*d;
+  const e=eigSym(p,q,r);                 // l1>=l2, v1,v2 orthonormal
+  const s1=Math.sqrt(Math.max(e.l1,0)), s2=Math.sqrt(Math.max(e.l2,0));
+  const Av=v=>[a*v[0]+b*v[1], c*v[0]+d*v[1]];
+  let u1 = s1>1e-9 ? V.scale(Av(e.v1),1/s1) : [1,0];
+  let u2 = s2>1e-9 ? V.scale(Av(e.v2),1/s2) : [-u1[1],u1[0]];
+  return {s1,s2, v1:e.v1, v2:e.v2, u1, u2};
 }
 /* rotation matrix -> unit quaternion (w,x,y,z), w>=0 */
 function matToQuat(R){
@@ -585,7 +602,13 @@ modules.frames = {
 /* ---------- 05 MATRICES AS MAPS (2D) ---------- */
 modules.matrix = {
   title:'Matrices as Maps', is2D:true,
-  blurb:`A matrix is a <b>machine that bends space</b>. Its two columns say where the basis arrows <span class="k">î</span> and <span class="k">ĵ</span> land — and every other point follows. <b>Drag the arrow tips</b> to reshape the grid. The shaded unit square becomes a parallelogram whose area is the <b>determinant</b>: how much space is scaled. A <b>negative</b> determinant means space was flipped; a <b>zero</b> determinant means it was crushed flat.<br><br>The <b>rank</b> counts how many of the columns point in genuinely independent directions — equivalently, the <b>dimension of the space the map fills</b>. <b>Rank 2</b> = the columns span the plane (det ≠ 0, invertible). <b>Rank 1</b> = the columns are parallel, so the whole plane collapses onto a <b>line</b> (det = 0). <b>Rank 0</b> = the zero matrix, mapping everything to the <b>origin</b>. Losing rank is exactly what a <b>singularity</b> is: try the <span class="k">Singular</span> preset and watch the square flatten.`,
+  blurb:`A matrix is a <b>machine that bends space</b>. Its two columns say where the basis arrows <span class="k">î</span> and <span class="k">ĵ</span> land — and every other point follows. <b>Drag the arrow tips</b> to reshape the grid. The shaded unit square becomes a parallelogram whose area is the <b>determinant</b>: how much space is scaled. A <b>negative</b> determinant means space was flipped; a <b>zero</b> determinant means it was crushed flat.<br><br>The <b>rank</b> counts how many of the columns point in genuinely independent directions — equivalently, the <b>dimension of the space the map fills</b>. <b>Rank 2</b> = the columns span the plane (det ≠ 0, invertible). <b>Rank 1</b> = the columns are parallel, so the whole plane collapses onto a <b>line</b> (det = 0). <b>Rank 0</b> = the zero matrix, mapping everything to the <b>origin</b>. Losing rank is exactly what a <b>singularity</b> is: try the <span class="k">Singular</span> preset and watch the square flatten.<br><br>
+<b>The inverse A⁻¹ undoes the map.</b> If A sends every point somewhere, <span class="k">A⁻¹</span> is the matrix that sends it back: <span class="k">A⁻¹A = I</span>. It exists only when nothing was destroyed — full rank, det ≠ 0. (If space was crushed onto a line you can't un-crush it, so a rank-deficient matrix has <b>no</b> inverse.)<br><br>
+<b>Computing it for a 2×2</b> <span class="k">A = [[a, b], [c, d]]</span> — three clear steps:<br>
+&nbsp;<b>1.</b> Determinant: <span class="k">det = ad − bc</span>. If it's 0, stop — no inverse.<br>
+&nbsp;<b>2.</b> Adjugate: <b>swap</b> the diagonal a↔d and <b>negate</b> the off-diagonal b, c → <span class="k">[[d, −b], [−c, a]]</span>.<br>
+&nbsp;<b>3.</b> Divide every entry by the determinant: <span class="k">A⁻¹ = (1/det)·[[d, −b], [−c, a]]</span>.<br>
+Larger matrices follow the same spirit but use <b>Gauss–Jordan elimination</b> — augment <span class="k">[A | I]</span>, row-reduce the left block to I, and the right block becomes A⁻¹. Geometrically A⁻¹ scales area by <span class="k">1/det</span> and rotates the opposite way. When det is tiny the inverse <b>blows up</b> (entries ÷ a near-zero number) — the same instability that makes near-singular robot Jacobians dangerous; the <span class="k">SVD</span> tab shows the robust fix. The live A⁻¹ for your current matrix is shown below.`,
   hint:'Drag the red (î) and green (ĵ) arrow tips to set the matrix.',
   s:{a:1,b:0,c:0,d:1, drag:null},
   controls(){
@@ -642,6 +665,14 @@ modules.matrix = {
       ro('maps plane onto',rank===2?'the plane (2D)':rank===1?'a line (1D)':'a point (0D)',rank<2?'x':'acc')+
       ro('î lands at','['+fmt(a)+', '+fmt(c)+']','x')+
       ro('ĵ lands at','['+fmt(b)+', '+fmt(d)+']','y');
+    if(rank===2){
+      RO.innerHTML+='<div class="rline" style="margin-top:6px"><span>adjugate (swap diag, negate off-diag)</span></div>'+
+        matEq('<span>'+fmt(d)+'</span><span>'+fmt(-b)+'</span><span>'+fmt(-c)+'</span><span>'+fmt(a)+'</span>',2,getC('--accent2'))+
+        '<div class="rline" style="margin-top:4px"><span>inverse A⁻¹ = adj ÷ det</span></div>'+
+        matEq('<span>'+fmt(d/det)+'</span><span>'+fmt(-b/det)+'</span><span>'+fmt(-c/det)+'</span><span>'+fmt(a/det)+'</span>',2);
+    } else {
+      RO.innerHTML+=ro('inverse A⁻¹','none (det = 0)','x');
+    }
     RO.innerHTML+= rank<2
       ? '<div class="verdict bad">det ≈ 0 → <b>rank '+rank+'</b>: the columns are '+(rank?'parallel, so space is crushed onto a line':'both zero, so everything maps to the origin')+'. Not invertible — a singularity.</div>'
       : det<0
@@ -665,6 +696,7 @@ modules.eigen = {
 &nbsp;• <b>Scaling</b> (λI) — <i>every</i> vector is an eigenvector; the whole plane is fixed in direction.<br>
 &nbsp;• <b>Rotation</b> — no vector keeps its direction, so the eigenvalues come out <b>complex</b> (the imaginary part encodes the rotation).<br><br>
 When a full set of eigenvectors exists they form an <b>eigenbasis</b>: in those coordinates the matrix is diagonal, which makes powers and exponentials trivial — the trick behind PCA, vibration modes, and the manipulability ellipse you'll meet in <span class="k">Singularities</span>.<br><br>
+<b>Constrained optimisation → eigenvalues.</b> Minimising <span class="k">‖Ax‖² subject to ‖x‖ = 1</span> turns (via <span class="k">Lagrange Multipliers</span>) into <span class="k">AᵀA x = λx</span>: the best direction is just the eigenvector of the <b>smallest</b> eigenvalue. That's how the <span class="k">Line Fitting</span> tab fits a line through noisy data, and the <b>SVD</b> generalises it.<br><br>
 <b>Watch it:</b> the spinning input <span class="k">v</span> and its image <span class="k">Av</span> line up exactly when v hits an eigen-direction. Full video: <a href="https://youtu.be/PFDu9oVAE-g" target="_blank" rel="noopener" style="color:var(--accent2)">youtu.be/PFDu9oVAE-g</a>.`,
   hint:'Drag to set the input vector, or let it sweep automatically.',
   s:{a:2,b:1,c:1,d:2, ang:rad(20), auto:true, drag:false},
@@ -724,6 +756,253 @@ When a full set of eigenvectors exists they form an <b>eigenbasis</b>: in those 
       RO.innerHTML+=ro('eigenvalues','complex','z')+
         '<div class="verdict warn">Complex eigenvalues — no real eigenvector. Every direction rotates (typical of a rotation matrix).</div>';
     }
+  }
+};
+
+/* ---------- LAGRANGE MULTIPLIERS (constrained optimization) ---------- */
+modules.lagrange = {
+  title:'Lagrange Multipliers', is2D:true,
+  blurb:`<b>Lagrange multipliers</b> solve <b>constrained</b> optimisation: minimise (or maximise) <span class="k">f(x)</span> while forced to stay on a surface <span class="k">g(x) = c</span>. <i>(From the ELTE computer-vision note "Lagrange-multipliers".)</i><br><br>
+<b>The geometric idea.</b> Draw the <b>level sets</b> of f — the curves where f is constant (here f = ‖x − T‖², so they're circles around the target <span class="k">T</span>). As you slide along the constraint curve, f keeps changing until the constraint runs <b>tangent</b> to a level set. At that touching point you can't go lower without leaving the constraint — that's the optimum.<br><br>
+<b>Tangent ⇔ gradients parallel.</b> A gradient is perpendicular to its level set, so "the curves are tangent" means their normals line up:<br>
+<span class="k">∇f = λ ∇g</span><br>
+The scalar <span class="k">λ</span> — the <b>Lagrange multiplier</b> — is just the ratio of the two gradient lengths. Lagrange's trick folds this into one unconstrained <b>cost function</b><br>
+<span class="k">J(x, λ) = f(x) − λ(g(x) − c)</span>,<br>
+because setting ∂J/∂x = 0 gives <span class="k">∇f = λ∇g</span>, and ∂J/∂λ = 0 gives back the constraint <span class="k">g(x) = c</span>. One clean system, valid in any dimension.<br><br>
+<b>Why robotics & vision care.</b> The same recipe, applied to <span class="k">min ‖Ax‖² s.t. ‖x‖ = 1</span>, becomes the eigenvalue problem <span class="k">AᵀA x = λx</span> — the cost equals λ, so the best x is the <b>smallest-eigenvalue eigenvector</b>. That single fact powers point-to-line distance, total-least-squares fitting (see <span class="k">Line Fitting</span>), and SVD. Here the constraint is a line, so the optimum is literally the <b>closest point</b>, distance <span class="k">d = (nᵀT − c)/‖n‖</span>.<br><br>
+<b>Drag the target T.</b> Watch the orange ∇f (downhill normal of the circles) swing to line up with the cyan ∇g (constraint normal) exactly at the optimum.`,
+  hint:'Drag the target T. Switch the constraint between a line and a circle; the optimum is where ∇f ∥ ∇g.',
+  s:{tx:1.8,ty:2.4, mode:'line', phi:25, off:-0.6, rad:2.2, drag:false},
+  controls(){
+    const S=this.s;
+    const row=chips('constraint g(x)=c',[{label:'Line',value:'line'},{label:'Circle',value:'circle'}],
+      (val,b,r)=>{S.mode=val;[...r.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');});
+    [...row.children][S.mode==='line'?0:1].classList.add('on');
+    slider('line angle',-90,90,S.phi,1,'x',x=>S.phi=x,x=>x+'°');
+    slider('line offset c',-3,3,S.off,0.05,'y',x=>S.off=x);
+    slider('circle radius r',0.5,3.5,S.rad,0.05,null,x=>S.rad=x);
+  },
+  pointerDown(wx,wy){this.s.tx=wx;this.s.ty=wy;this.s.drag=true;},
+  pointerMove(wx,wy){if(this.s.drag){this.s.tx=wx;this.s.ty=wy;}},
+  pointerUp(){this.s.drag=false;},
+  draw(){
+    grid2();
+    const S=this.s, T=[S.tx,S.ty], O=w2s(0,0);
+    // level sets of f = ||x - T||^2  (concentric circles around T)
+    const Tc=w2s(T[0],T[1]);
+    ctx.save();ctx.lineWidth=1.1;
+    for(let k=1;k<=7;k++){ ctx.strokeStyle='rgba(255,180,84,'+(0.05+0.16/k)+')';
+      ctx.beginPath();ctx.arc(Tc.x,Tc.y,k*0.7*PPU,0,7);ctx.stroke(); }
+    ctx.restore();
+    // constraint + optimum
+    let xstar, gradg, dist, lam, gtxt;
+    if(S.mode==='line'){
+      const phi=rad(S.phi), n=[Math.cos(phi),Math.sin(phi)], c=S.off; // line: n·x = c
+      // draw the line (direction = perpendicular to n)
+      const dirL=[-n[1],n[0]];
+      const base=[n[0]*c,n[1]*c];
+      const p1=w2s(base[0]+dirL[0]*8,base[1]+dirL[1]*8), p2=w2s(base[0]-dirL[0]*8,base[1]-dirL[1]*8);
+      ctx.save();ctx.strokeStyle=getC('--accent2');ctx.lineWidth=2.2;
+      ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();ctx.restore();
+      const s = c - (n[0]*T[0]+n[1]*T[1]);
+      xstar=[T[0]+s*n[0], T[1]+s*n[1]];
+      gradg=n; dist=Math.abs(s); lam=2*s;
+      gtxt='g(x) = nᵀx − c,&nbsp; n = ['+fmt(n[0])+', '+fmt(n[1])+']';
+    } else {
+      const r=S.rad, tn=V.len(T)||1, u=[T[0]/tn,T[1]/tn];
+      ctx.save();ctx.strokeStyle=getC('--accent2');ctx.lineWidth=2.2;
+      ctx.beginPath();ctx.arc(O.x,O.y,r*PPU,0,7);ctx.stroke();ctx.restore();
+      xstar=[u[0]*r,u[1]*r]; gradg=[2*xstar[0],2*xstar[1]];
+      dist=Math.abs(tn-r); lam=(r-tn)/r;
+      gtxt='g(x) = ‖x‖² − r²';
+    }
+    // residual: target -> optimum
+    const A=w2s(T[0],T[1]),B=w2s(xstar[0],xstar[1]);
+    ctx.save();ctx.strokeStyle='rgba(230,237,246,.45)';ctx.lineWidth=1.6;ctx.setLineDash([5,5]);
+    ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();
+    // gradients at the optimum
+    const gf=[2*(xstar[0]-T[0]),2*(xstar[1]-T[1])];
+    const gfn=V.norm(gf.some(v=>Math.abs(v)>1e-6)?gf:[1,0]), ggn=V.norm(gradg);
+    arrow2w(xstar[0],xstar[1],xstar[0]+gfn[0]*1.4,xstar[1]+gfn[1]*1.4,getC('--accent'),3,'∇f');
+    arrow2w(xstar[0],xstar[1],xstar[0]+ggn[0]*1.0,xstar[1]+ggn[1]*1.0,getC('--accent2'),3,'∇g');
+    dot2w(T[0],T[1],getC('--z'),6); dot2w(xstar[0],xstar[1],getC('--accent'),6);
+    ctx.save();ctx.fillStyle=getC('--z');ctx.font='600 12px "Space Grotesk", sans-serif';
+    ctx.fillText('T',A.x+9,A.y-8);
+    ctx.fillStyle=getC('--accent');ctx.fillText('x*',B.x+9,B.y+14);ctx.restore();
+    const aligned=Math.abs(gfn[0]*ggn[0]+gfn[1]*ggn[1])>0.999;
+    RO.innerHTML=
+      ro('target T','['+fmt(T[0])+', '+fmt(T[1])+']','z')+
+      '<div class="rline"><span>constraint</span><span class="v acc2" style="font-size:11px">'+gtxt+'</span></div>'+
+      ro('optimum x*','['+fmt(xstar[0])+', '+fmt(xstar[1])+']','acc')+
+      ro('distance d',fmt(dist),'acc')+
+      ro('multiplier λ',fmt(lam),'acc2')+
+      '<div class="verdict '+(aligned?'ok':'warn')+'">'+(aligned
+        ? '∇f ∥ ∇g here — the level set is tangent to the constraint, so x* is optimal. λ = '+fmt(lam)+' is the ratio of gradient lengths.'
+        : 'Not yet tangent — slide along the constraint and f still changes. (This is always tangent for these closed-form constraints.)')+'</div>';
+  }
+};
+
+/* ---------- LINE FITTING / TOTAL LEAST SQUARES ---------- */
+modules.linefit = {
+  title:'Line Fitting (TLS)', is2D:true,
+  blurb:`<b>Total-least-squares line fitting</b> — the payoff of Lagrange multipliers (ELTE CV note §3–4). Ordinary regression minimises <i>vertical</i> error; here we minimise the <b>true perpendicular distance</b> from each point to the line, which is what you want when both coordinates are noisy (camera points, lidar returns).<br><br>
+<b>Setup.</b> A line is <span class="k">nᵀx + m = 0</span> with unit normal n. The squared distance of point xᵢ is <span class="k">(nᵀxᵢ + m)²</span>. Summing and minimising over <b>m</b> first gives <span class="k">m = −nᵀt</span>, where <span class="k">t = (Σxᵢ)/N</span> is the <b>centroid</b> — so the best line always passes through the centre of gravity.<br><br>
+<b>The direction is an eigenvector.</b> Re-centre the points (subtract t). The remaining problem is<br>
+<span class="k">min Σ (nᵀxᵢ)² subject to ‖n‖ = 1</span>.<br>
+By Lagrange multipliers this becomes <span class="k">Mn = λn</span> with the <b>scatter matrix</b> <span class="k">M = Σ xᵢxᵢᵀ</span> (a symmetric 2×2). The minimum cost equals the eigenvalue, so:<br>
+&nbsp;• the <b>normal n</b> = eigenvector of the <b>smallest</b> eigenvalue (least spread),<br>
+&nbsp;• the <b>line direction</b> = eigenvector of the <b>largest</b> eigenvalue (most spread),<br>
+&nbsp;• the smallest eigenvalue <b>is</b> the total squared perpendicular error.<br><br>
+This is exactly principal-component analysis, and stacking the data into <span class="k">A = USVᵀ</span> (the note's final section) reads the same answer off the <b>SVD</b>: the smallest singular vector is the normal. Same idea fits planes in 3D for point-cloud and pose work.<br><br>
+<b>Drag any point</b> and watch the centroid, the fitted line, and the perpendicular residuals update live.`,
+  hint:'Drag the points. The line is fit by the largest eigenvector of the scatter matrix; residuals are perpendicular.',
+  s:{pts:[[-2.4,-1.4],[-1.4,-0.5],[-0.4,-0.7],[0.7,0.5],[1.7,0.6],[2.6,1.7]], drag:-1},
+  controls(){
+    const S=this.s;
+    chips('data',[
+      {label:'Diagonal',value:[[-2.4,-1.4],[-1.4,-0.5],[-0.4,-0.7],[0.7,0.5],[1.7,0.6],[2.6,1.7]]},
+      {label:'Steep',value:[[-1.2,-2.5],[-0.8,-1.3],[-0.2,-0.2],[0.3,0.9],[0.7,1.9],[1.3,2.8]]},
+      {label:'Noisy blob',value:[[-1.8,0.6],[-0.7,-1.1],[0.1,1.4],[0.9,-0.6],[1.9,0.9],[-0.3,-0.2]]},
+    ],v=>{S.pts=v.map(p=>p.slice());});
+  },
+  pointerDown(wx,wy){
+    const S=this.s; let best=0.6, idx=-1;
+    S.pts.forEach((p,i)=>{const d=Math.hypot(p[0]-wx,p[1]-wy); if(d<best){best=d;idx=i;}});
+    S.drag=idx; if(idx>=0){S.pts[idx]=[wx,wy];}
+  },
+  pointerMove(wx,wy){const S=this.s; if(S.drag>=0)S.pts[S.drag]=[wx,wy];},
+  pointerUp(){this.s.drag=-1;},
+  draw(){
+    grid2();
+    const S=this.s, N=S.pts.length;
+    // centroid
+    let cx=0,cy=0; S.pts.forEach(p=>{cx+=p[0];cy+=p[1];}); cx/=N; cy/=N;
+    // scatter matrix of centred points
+    let Sxx=0,Sxy=0,Syy=0;
+    S.pts.forEach(p=>{const dx=p[0]-cx,dy=p[1]-cy; Sxx+=dx*dx; Sxy+=dx*dy; Syy+=dy*dy;});
+    const e=eigSym(Sxx,Sxy,Syy);      // l1>=l2, v1 dominant dir, v2 normal
+    const dir=e.v1, nrm=e.v2;
+    // fitted line through centroid along dominant eigenvector
+    const a1=w2s(cx+dir[0]*8,cy+dir[1]*8), a2=w2s(cx-dir[0]*8,cy-dir[1]*8);
+    ctx.save();ctx.strokeStyle=getC('--accent');ctx.lineWidth=2.6;
+    ctx.beginPath();ctx.moveTo(a1.x,a1.y);ctx.lineTo(a2.x,a2.y);ctx.stroke();ctx.restore();
+    // perpendicular residuals + points
+    let sse=0;
+    S.pts.forEach((p,i)=>{
+      const dx=p[0]-cx,dy=p[1]-cy, t=dx*dir[0]+dy*dir[1];
+      const foot=[cx+dir[0]*t, cy+dir[1]*t];
+      const P=w2s(p[0],p[1]),F=w2s(foot[0],foot[1]);
+      ctx.save();ctx.strokeStyle='rgba(45,212,212,.5)';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.moveTo(P.x,P.y);ctx.lineTo(F.x,F.y);ctx.stroke();ctx.restore();
+      const r=(p[0]-cx)*nrm[0]+(p[1]-cy)*nrm[1]; sse+=r*r;
+      dot2w(p[0],p[1], i===S.drag?getC('--accent'):getC('--y'),6);
+    });
+    // centroid marker
+    const Cc=w2s(cx,cy);
+    ctx.save();ctx.fillStyle=getC('--z');ctx.strokeStyle='#0a0e16';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(Cc.x,Cc.y,6,0,7);ctx.fill();ctx.stroke();
+    ctx.fillStyle=getC('--z');ctx.font='600 12px "Space Grotesk", sans-serif';
+    ctx.fillText('centroid t',Cc.x+9,Cc.y-8);ctx.restore();
+    RO.innerHTML=
+      ro('centroid t','['+fmt(cx)+', '+fmt(cy)+']','z')+
+      ro('λ₁ (along line)',fmt(e.l1),'acc')+
+      ro('λ₂ (across, = error)',fmt(e.l2),'acc2')+
+      ro('line normal n','['+fmt(nrm[0])+', '+fmt(nrm[1])+']','acc2')+
+      ro('Σ perp. dist²',fmt(sse),'acc2')+
+      '<div class="verdict ok">Best fit = largest eigenvector of the scatter matrix; the normal is the smallest one, and λ₂ ='+fmt(e.l2)+' is the total perpendicular error. Same vector the SVD returns.</div>';
+  }
+};
+
+/* ---------- SINGULAR VALUE DECOMPOSITION ---------- */
+modules.svd = {
+  title:'Singular Value Decomposition', is2D:true,
+  blurb:`<b>SVD</b> says <i>every</i> matrix — square or not, invertible or not — is secretly just <b>rotate, stretch, rotate</b>:<br>
+<span class="k">A = U Σ Vᵀ</span><br>
+with <span class="k">U</span> and <span class="k">V</span> <b>rotations</b> (orthonormal) and <span class="k">Σ = diag(σ₁, σ₂, …)</span> a pure <b>axis-aligned stretch</b>. The <span class="k">σᵢ ≥ 0</span> are the <b>singular values</b>.<br><br>
+<b>The geometric picture (step through it below).</b> Feed A the unit circle:<br>
+&nbsp;<b>①</b> <span class="k">Vᵀ</span> rotates so the special input directions (right-singular vectors v₁, v₂) land on the axes — still a circle.<br>
+&nbsp;<b>②</b> <span class="k">Σ</span> stretches the axes by σ₁ and σ₂ — now an <b>axis-aligned ellipse</b>.<br>
+&nbsp;<b>③</b> <span class="k">U</span> rotates that ellipse into its final pose = <span class="k">A</span>(circle).<br>
+So <b>A always maps the unit circle to an ellipse</b>, whose semi-axis lengths are exactly σ₁, σ₂ and whose directions are the columns of U (the left-singular vectors).<br><br>
+<b>How it's built.</b> The right-singular vectors are the eigenvectors of <span class="k">AᵀA</span>, and the singular values are the square roots of its eigenvalues: <span class="k">σᵢ = √λᵢ(AᵀA)</span>. Then <span class="k">uᵢ = A vᵢ / σᵢ</span>. (That's exactly the <span class="k">Line Fitting</span> story — the smallest singular vector is the best-fit normal.)<br><br>
+<b>What it tells you at a glance.</b><br>
+&nbsp;• <b>rank</b> = number of <b>non-zero</b> singular values; σ₂ = 0 ⇒ the ellipse is a flat segment ⇒ <b>singular</b>.<br>
+&nbsp;• <b>condition number</b> <span class="k">κ = σ₁ / σ₂</span> measures how close to singular A is — big κ means A nearly collapses a direction and its inverse is unstable.<br><br>
+<b>Inverse & pseudo-inverse, unified.</b> Because rotations just transpose, the inverse is trivial in SVD form:<br>
+<span class="k">A⁻¹ = V Σ⁻¹ Uᵀ</span> &nbsp;(invert each σ → 1/σ).<br>
+When some σ = 0 there's no true inverse, so you drop those directions and invert only the non-zero ones — the <b>Moore–Penrose pseudo-inverse</b> <span class="k">A⁺ = V Σ⁺ Uᵀ</span>. That is precisely the <span class="k">J⁺</span> the <span class="k">Inverse Kinematics</span> and <span class="k">Singularities</span> tabs use, and damped least-squares just nudges each σ away from 0 for stability.<br><br>
+<b>Drag î / ĵ</b> to set A; step ① → ② → ③ to watch the rotate-stretch-rotate.`,
+  hint:'Drag the red (î) and green (ĵ) tips to set A. Step the stage chips to see Vᵀ → Σ → U.',
+  s:{a:1.6,b:0.9,c:-0.4,d:1.2, stage:3, drag:null},
+  controls(){
+    const S=this.s;
+    const row=chips('stage',[
+      {label:'circle',value:0},{label:'① Vᵀ',value:1},
+      {label:'② Σ',value:2},{label:'③ A',value:3}],
+      (val,b,r)=>{S.stage=val;[...r.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');});
+    [...row.children][S.stage].classList.add('on');
+    chips('presets',[
+      {label:'Generic',value:[1.6,0.9,-0.4,1.2]},
+      {label:'Rotation',value:[Math.cos(rad(35)),-Math.sin(rad(35)),Math.sin(rad(35)),Math.cos(rad(35))]},
+      {label:'Near-singular ⚠',value:[1.4,1.3,1.1,1.02]},
+      {label:'Pure scale',value:[2.2,0,0,0.8]},
+    ],v=>{S.a=v[0];S.b=v[1];S.c=v[2];S.d=v[3];});
+  },
+  pointerDown(wx,wy){const S=this.s;
+    const di=Math.hypot(wx-S.a,wy-S.c), dj=Math.hypot(wx-S.b,wy-S.d);
+    if(di<0.4&&di<=dj)S.drag='i'; else if(dj<0.4)S.drag='j';},
+  pointerMove(wx,wy){const S=this.s;
+    if(S.drag==='i'){S.a=clamp(wx,-3.5,3.5);S.c=clamp(wy,-3.5,3.5);}
+    else if(S.drag==='j'){S.b=clamp(wx,-3.5,3.5);S.d=clamp(wy,-3.5,3.5);}},
+  pointerUp(){this.s.drag=null;},
+  draw(){
+    grid2();
+    const S=this.s,a=S.a,b=S.b,c=S.c,d=S.d;
+    const svd=svd2(a,b,c,d), {s1,s2,v1,v2,u1,u2}=svd, st=S.stage;
+    // transform a point through the cumulative stage of A = U Σ Vᵀ
+    const tf=p=>{
+      if(st===0) return p;                                   // unit circle
+      const r1=v1[0]*p[0]+v1[1]*p[1], r2=v2[0]*p[0]+v2[1]*p[1]; // Vᵀp
+      if(st===1) return [r1,r2];
+      const e1=s1*r1, e2=s2*r2;                              // Σ Vᵀ p
+      if(st===2) return [e1,e2];
+      return [u1[0]*e1+u2[0]*e2, u1[1]*e1+u2[1]*e2];         // U Σ Vᵀ p = A p
+    };
+    // faint reference unit circle
+    const O=w2s(0,0);
+    ctx.save();ctx.strokeStyle='rgba(120,150,190,.25)';ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.arc(O.x,O.y,PPU,0,7);ctx.stroke();ctx.restore();
+    // current-stage shape (circle morphing to the ellipse)
+    ctx.save();ctx.strokeStyle=getC('--accent');ctx.lineWidth=2.4;
+    ctx.fillStyle=(st===3&&s2<0.08)?'rgba(255,85,102,.12)':'rgba(255,180,84,.10)';
+    ctx.beginPath();
+    for(let i=0;i<=96;i++){const t=i/96*Math.PI*2,P=tf([Math.cos(t),Math.sin(t)]),s=w2s(P[0],P[1]);
+      i?ctx.lineTo(s.x,s.y):ctx.moveTo(s.x,s.y);}
+    ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+    // the two singular directions carried through the same stage
+    const d1=tf(v1), d2=tf(v2);
+    arrow2w(0,0,d1[0],d1[1],getC('--accent2'),3, st<2?'v₁':(st===3?'σ₁u₁':'σ₁'));
+    arrow2w(0,0,d2[0],d2[1],getC('--z'),3, st<2?'v₂':(st===3?'σ₂u₂':'σ₂'));
+    // input basis arrows (what you drag) shown faint for reference
+    ctx.save();ctx.globalAlpha=.5;
+    arrow2w(0,0,a,c,getC('--x'),2,'î'); arrow2w(0,0,b,d,getC('--y'),2,'ĵ');
+    ctx.restore();
+    const kappa = s2>1e-6 ? s1/s2 : Infinity, rank=(s1>0.06?1:0)+(s2>0.06?1:0);
+    RO.innerHTML=
+      matEq('<span>'+fmt(a)+'</span><span>'+fmt(b)+'</span><span>'+fmt(c)+'</span><span>'+fmt(d)+'</span>',2)+
+      ro('σ₁ (long axis)',fmt(s1),'acc')+
+      ro('σ₂ (short axis)',fmt(s2),'acc2')+
+      ro('rank (non-zero σ)',rank+' / 2',rank<2?'x':'acc')+
+      ro('condition κ = σ₁/σ₂', isFinite(kappa)?fmt(kappa):'∞', kappa>20?'x':'acc2')+
+      '<div class="rline" style="margin-top:5px"><span>V (right vectors, cols)</span></div>'+
+      matEq('<span>'+fmt(v1[0])+'</span><span>'+fmt(v2[0])+'</span><span>'+fmt(v1[1])+'</span><span>'+fmt(v2[1])+'</span>',2,getC('--accent2'))+
+      '<div class="rline" style="margin-top:4px"><span>U (left vectors, cols)</span></div>'+
+      matEq('<span>'+fmt(u1[0])+'</span><span>'+fmt(u2[0])+'</span><span>'+fmt(u1[1])+'</span><span>'+fmt(u2[1])+'</span>',2)+
+      '<div class="verdict '+(s2<0.08?'bad':kappa>20?'warn':'ok')+'">'+(s2<0.08
+        ? 'σ₂ ≈ 0 — the circle collapses to a segment: rank 1, singular, no inverse (use the pseudo-inverse A⁺ = VΣ⁺Uᵀ).'
+        : kappa>20
+        ? 'Large κ = '+fmt(kappa)+' — nearly singular; A⁻¹ = VΣ⁻¹Uᵀ is ill-conditioned (dividing by the tiny σ₂).'
+        : 'A = UΣVᵀ: rotate by Vᵀ, stretch by σ₁,σ₂, rotate by U. Inverse just flips each σ: A⁻¹ = VΣ⁻¹Uᵀ.')+'</div>';
   }
 };
 
@@ -1658,10 +1937,11 @@ function drawDiffRobot(x,y,th,d,r){
 }
 
 /* ============================ shell ============================== */
-const order=['vectors','dot','cross','frames','rotations','matrix','eigen',
+const order=['vectors','dot','cross','frames','rotations','matrix','eigen','lagrange','linefit','svd',
   'fk','dh','ik','workspace','singularity','diffdrive','mobileik','trajectory','markov','particle','slam'];
 const labels={vectors:'Vectors',dot:'Dot Product',cross:'Cross Product',frames:'Frames & Transforms',
   rotations:'Rotations',matrix:'Matrices as Maps',eigen:'Eigenvectors',
+  lagrange:'Lagrange Multipliers',linefit:'Line Fitting (TLS)',svd:'Singular Value Decomposition',
   fk:'Forward Kinematics',dh:'DH Parameters',ik:'Inverse Kinematics',workspace:'Workspace',
   singularity:'Singularities',diffdrive:'Differential Drive',mobileik:'Mobile Inverse Kinematics',
   trajectory:'Motion Profiles',markov:'Markov Localization',particle:'Particle Filter',slam:'SLAM (Loop Closure)'};
@@ -1714,6 +1994,26 @@ function frame(){
   m.draw();
   requestAnimationFrame(frame);
 }
+/* resizable explanation panel */
+(function(){
+  const rz=document.getElementById('resizer'), root=document.documentElement;
+  const DEF=440, KEY='kinematica-side-w';
+  const setW=w=>{ const max=Math.min(window.innerWidth-360, 900);
+    w=Math.max(300, Math.min(max, w));
+    root.style.setProperty('--side-w', w+'px'); resize(); };
+  const saved=parseFloat(localStorage.getItem(KEY)); if(saved) setW(saved);
+  let dragging=false;
+  rz.addEventListener('pointerdown',e=>{ dragging=true; rz.classList.add('active');
+    rz.setPointerCapture(e.pointerId); e.preventDefault(); });
+  rz.addEventListener('pointermove',e=>{ if(!dragging)return;
+    setW(window.innerWidth - e.clientX); });
+  const end=()=>{ if(!dragging)return; dragging=false; rz.classList.remove('active');
+    const cur=getComputedStyle(root).getPropertyValue('--side-w').trim();
+    localStorage.setItem(KEY, parseFloat(cur)||DEF); };
+  rz.addEventListener('pointerup',end);
+  rz.addEventListener('pointercancel',end);
+  rz.addEventListener('dblclick',()=>{ setW(DEF); localStorage.setItem(KEY,DEF); });
+})();
 resize(); select('vectors'); requestAnimationFrame(frame);
 window.addEventListener('resize',()=>{resize();});
 </script>
