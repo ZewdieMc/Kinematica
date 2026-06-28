@@ -1331,6 +1331,117 @@ A <b>revolute</b> joint varies only <span class="k">θ</span>; a <b>prismatic</b
   }
 };
 
+/* ---------- URDF — UNIFIED ROBOT DESCRIPTION FORMAT (2D) ---------- */
+modules.urdf = {
+  title:'URDF — Robot Description', is2D:true,
+  blurb:`<b>URDF</b> (Unified Robot Description Format) is the <b>XML file</b> that describes a robot's <b>visual, physical and connection</b> information — the same description ROS uses for simulation, visualization (RViz / Gazebo) and the real machine.<br><br>
+<b>The tree.</b> A robot is a tree of <b>links</b> (rigid bodies — base, arm, wheel) joined by <b>joints</b>. Every joint connects exactly <b>two</b> links: a <span class="k">parent</span> and a <span class="k">child</span>, so the structure reads <span class="k">robot → joint → link → joint → link …</span> from the base outward.<br><br>
+<b>A link</b> can carry four things: <span class="k">&lt;visual&gt;</span> (what it looks like — geometry + material), <span class="k">&lt;collision&gt;</span> (the shape used for physics & obstacle checks), <span class="k">&lt;inertial&gt;</span> (mass & inertia), and an <span class="k">&lt;origin&gt;</span> giving its pose w.r.t. the parent.<br><br>
+<b>A joint</b> declares its <span class="k">type</span>, its <span class="k">parent</span>/<span class="k">child</span> links, an <span class="k">&lt;origin&gt;</span> (where the joint sits), an <span class="k">&lt;axis&gt;</span> of motion, and optional <span class="k">&lt;limit&gt;</span>s. The four common types:<br>
+&nbsp;• <b>fixed</b> — no relative movement (welded).<br>
+&nbsp;• <b>revolute</b> — rotates within limits about an axis (an elbow).<br>
+&nbsp;• <b>continuous</b> — rotates infinitely about an axis (a wheel).<br>
+&nbsp;• <b>prismatic</b> — slides linearly along an axis (a slider).<br><br>
+<b>Origin</b> places a link or joint relative to its parent with <span class="k">xyz</span> (metres) and <span class="k">rpy</span> (roll-pitch-yaw, radians): <span class="k">&lt;origin xyz="x y z" rpy="r p y"/&gt;</span>. <b>Material</b> defines colour & transparency as <span class="k">rgba</span> in 0…1 (red = <span class="k">1 0 0 1</span>, green = <span class="k">0 1 0 1</span>).<br><br>
+Pick a <b>joint type</b> below and move it — the parent link stays put while the child link obeys the joint, and the generated URDF on the right updates live (origin, axis and limits change with the type).`,
+  hint:'Pick a joint type, then move the joint. The URDF panel is generated live.',
+  s:{type:'revolute', q:40, d:0.25, L1:2.0, L2:1.8},
+  jdef:{
+    fixed:     {axis:null,    lower:null, upper:null, desc:'No relative movement — the child is welded to the parent.'},
+    revolute:  {axis:'0 0 1', lower:-1.57,upper:1.57, desc:'Rotates within ± limits about the axis (an elbow).'},
+    continuous:{axis:'0 0 1', lower:null, upper:null, desc:'Rotates infinitely about the axis (a wheel).'},
+    prismatic: {axis:'1 0 0', lower:0,    upper:0.5,  desc:'Slides linearly along the axis (a slider).'},
+  },
+  controls(){
+    const S=this.s;
+    const row=chips('joint type',[
+      {label:'fixed',value:'fixed'},{label:'revolute',value:'revolute'},
+      {label:'continuous',value:'continuous'},{label:'prismatic',value:'prismatic'}],
+      (val,b,r)=>{S.type=val;[...r.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');});
+    [...row.children].forEach(c=>{if(c.textContent===S.type)c.classList.add('on');});
+    slider('joint angle θ (revolute / continuous)',-180,180,S.q,1,'z',x=>S.q=x,x=>x+'°');
+    slider('joint slide d (prismatic)',0,0.5,S.d,0.01,'x',x=>S.d=x,x=>fmt(x)+' m');
+    slider('parent link length',1,2.6,S.L1,0.1,null,x=>S.L1=x);
+    slider('child link length',1,2.6,S.L2,0.1,null,x=>S.L2=x);
+  },
+  draw(){
+    grid2();
+    const S=this.s, J=this.jdef[S.type], rot=(S.type==='revolute'||S.type==='continuous');
+    // joint pivot at origin; parent link runs left into it
+    const Pv=[-0.3,0], B0=[Pv[0]-S.L1,0];
+    // angle (clamped to limits for revolute) and slide
+    let a=rad(S.q);
+    if(S.type==='fixed') a=0;
+    if(S.type==='revolute') a=clamp(a,J.lower,J.upper);
+    const slideVis=(S.type==='prismatic')? S.d*3.4 : 0;          // metres → screen units
+    const axis=[Math.cos(a),Math.sin(a)];
+    // child link endpoints
+    let cStart, cEnd;
+    if(S.type==='prismatic'){ cStart=[Pv[0]+slideVis,Pv[1]]; cEnd=[cStart[0]+S.L2,cStart[1]]; }
+    else { cStart=Pv; cEnd=[Pv[0]+S.L2*axis[0], Pv[1]+S.L2*axis[1]]; }
+    const drawLink=(p,q,color,label)=>{
+      const A=w2s(p[0],p[1]),B=w2s(q[0],q[1]);
+      ctx.save(); ctx.lineCap='round';
+      ctx.strokeStyle='rgba(10,14,22,.9)'; ctx.lineWidth=15;
+      ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();
+      ctx.strokeStyle=color; ctx.lineWidth=11;
+      ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();
+      const mx=(A.x+B.x)/2, my=(A.y+B.y)/2;
+      ctx.fillStyle=getC('--text');ctx.font='600 11px "Space Grotesk", sans-serif';
+      ctx.textAlign='center';ctx.fillText(label,mx,my-13);ctx.textAlign='left';ctx.restore();
+    };
+    drawLink(B0,Pv,getC('--z'),'base_link  (parent)');
+    drawLink(cStart,cEnd,getC('--accent2'),'link1  (child)');
+    // axis of motion at the joint
+    const P=w2s(Pv[0],Pv[1]);
+    if(rot){ // z-axis out of plane: circular sweep arrow
+      ctx.save();ctx.strokeStyle=getC('--accent');ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(P.x,P.y,26,-1.2,1.2);ctx.stroke();
+      const ex=P.x+26*Math.cos(1.2),ey=P.y+26*Math.sin(1.2);
+      arrowHead2({x:ex-3,y:ey-6},{x:ex,y:ey},getC('--accent'),9);ctx.restore();
+    } else if(S.type==='prismatic'){ // double arrow along x
+      const lo=w2s(Pv[0]-0.6,Pv[1]-0.9), hi=w2s(Pv[0]+1.0,Pv[1]-0.9);
+      line2(lo,hi,getC('--accent'),2.5);
+      arrowHead2(lo,{x:lo.x-1,y:lo.y},getC('--accent'),9);
+      arrowHead2(hi,{x:hi.x+1,y:hi.y},getC('--accent'),9);
+    }
+    // joint marker
+    ctx.save();ctx.fillStyle='#0a0e16';ctx.strokeStyle=getC('--accent');ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.arc(P.x,P.y,7,0,7);ctx.fill();ctx.stroke();
+    ctx.fillStyle=getC('--accent');ctx.font='600 11px "Space Grotesk", sans-serif';
+    ctx.fillText('joint1 · '+S.type,P.x+12,P.y+22);ctx.restore();
+
+    // ---- live URDF ----
+    const xyz=fmt(S.L1)+' 0 0';
+    const TAG='#c8a6ff', AT=getC('--accent2'), STR=getC('--y');
+    const t=s=>'<span style="color:'+TAG+'">'+s+'</span>';
+    const at=(n,v)=>'<span style="color:'+AT+'">'+n+'</span>=<span style="color:'+STR+'">&quot;'+v+'&quot;</span>';
+    let L=[];
+    L.push(t('&lt;joint ')+at('name','joint1')+' '+at('type',S.type)+t('&gt;'));
+    L.push('  '+t('&lt;parent ')+at('link','base_link')+t('/&gt;'));
+    L.push('  '+t('&lt;child ')+at('link','link1')+t('/&gt;'));
+    L.push('  '+t('&lt;origin ')+at('xyz',xyz)+' '+at('rpy','0 0 0')+t('/&gt;'));
+    if(J.axis) L.push('  '+t('&lt;axis ')+at('xyz',J.axis)+t('/&gt;'));
+    if(J.lower!==null) L.push('  '+t('&lt;limit ')+at('lower',fmt(J.lower))+' '+at('upper',fmt(J.upper))+' '+at('effort','10')+' '+at('velocity','1')+t('/&gt;'));
+    L.push(t('&lt;/joint&gt;'));
+    const code='<div style="font-family:var(--mono);font-size:11px;line-height:1.6;'+
+      'background:rgba(45,212,212,.05);border-left:2px solid var(--accent2);'+
+      'padding:9px 12px;border-radius:0 6px 6px 0;white-space:pre;overflow-x:auto;color:var(--text)">'+
+      L.join('\n')+'</div>';
+    const motion = S.type==='fixed' ? 'none' :
+      S.type==='prismatic' ? ('d = '+fmt(S.d)+' m') : ('θ = '+fmt(deg(a),0)+'°');
+    RO.innerHTML=
+      '<div class="rline"><span>joint1 (live URDF)</span></div>'+ code+
+      ro('parent → child','base_link → link1','acc2')+
+      ro('type',S.type,'acc')+
+      ro('origin xyz','['+xyz+']','')+
+      ro('axis xyz', J.axis ? '['+J.axis+']' : '— (fixed)', J.axis?'z':'')+
+      ro('limits', J.lower!==null ? ('lower '+fmt(J.lower)+'  upper '+fmt(J.upper)) : (S.type==='continuous'?'none (continuous)':'—'),'')+
+      ro('joint value', motion,'acc')+
+      '<div class="verdict ok">'+J.desc+'</div>';
+  }
+};
+
 /* ---------- 10 INVERSE KINEMATICS (2D, 2-link) ---------- */
 modules.ik = {
   title:'Inverse Kinematics', is2D:true,
@@ -1938,11 +2049,11 @@ function drawDiffRobot(x,y,th,d,r){
 
 /* ============================ shell ============================== */
 const order=['vectors','dot','cross','frames','rotations','matrix','eigen','lagrange','linefit','svd',
-  'fk','dh','ik','workspace','singularity','diffdrive','mobileik','trajectory','markov','particle','slam'];
+  'fk','dh','urdf','ik','workspace','singularity','diffdrive','mobileik','trajectory','markov','particle','slam'];
 const labels={vectors:'Vectors',dot:'Dot Product',cross:'Cross Product',frames:'Frames & Transforms',
   rotations:'Rotations',matrix:'Matrices as Maps',eigen:'Eigenvectors',
   lagrange:'Lagrange Multipliers',linefit:'Line Fitting (TLS)',svd:'Singular Value Decomposition',
-  fk:'Forward Kinematics',dh:'DH Parameters',ik:'Inverse Kinematics',workspace:'Workspace',
+  fk:'Forward Kinematics',dh:'DH Parameters',urdf:'URDF',ik:'Inverse Kinematics',workspace:'Workspace',
   singularity:'Singularities',diffdrive:'Differential Drive',mobileik:'Mobile Inverse Kinematics',
   trajectory:'Motion Profiles',markov:'Markov Localization',particle:'Particle Filter',slam:'SLAM (Loop Closure)'};
 let active='vectors';

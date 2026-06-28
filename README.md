@@ -1,6 +1,6 @@
 # Kinematica — robotics math, made visible
 
-An interactive, zero-to-hero robotics tutorial — from the linear algebra foundations all the way to localization and SLAM. Twenty-one linked modules that build on each other, following *Introduction to Autonomous Robots* (Correll, Hayes, Heckman & Roncone):
+An interactive, zero-to-hero robotics tutorial — from the linear algebra foundations all the way to localization and SLAM. Twenty-two linked modules that build on each other, following *Introduction to Autonomous Robots* (Correll, Hayes, Heckman & Roncone):
 
 **Foundations — the math** (Appendix B, Ch. 2.4)
 
@@ -19,24 +19,25 @@ An interactive, zero-to-hero robotics tutorial — from the linear algebra found
 
 11. **Forward Kinematics** — turn the joints of a 3-link arm; watch the frames stack to a tip pose
 12. **DH Parameters** — a 3D arm built from a live Denavit–Hartenberg table (α, a, d, θ)
-13. **Inverse Kinematics** — drag a target; solve a 2-link arm's elbow-up / elbow-down angles
-14. **Workspace** — the reachable cloud of an arm, and how joint limits carve it down
-15. **Singularities** — a 2-link arm whose Jacobian, manipulability ellipse and measure tie everything together
+13. **URDF** — the XML that describes a robot for ROS/RViz/Gazebo: links, joints, origin, axis and limits, with live-generated URDF for fixed / revolute / continuous / prismatic joints
+14. **Inverse Kinematics** — drag a target; solve a 2-link arm's elbow-up / elbow-down angles
+15. **Workspace** — the reachable cloud of an arm, and how joint limits carve it down
+16. **Singularities** — a 2-link arm whose Jacobian, manipulability ellipse and measure tie everything together
 
 **Mobile robots & motion** (Ch. 3.3–3.4)
 
-16. **Differential Drive** — wheel speeds → body velocity → integrated pose (odometry)
-17. **Mobile Inverse Kinematics** — drive-to-goal control; wheel speeds from a body velocity, and the non-holonomic constraint
-18. **Motion Profiles** — trapezoidal vs cubic trajectories: how a joint actually moves over time
+17. **Differential Drive** — wheel speeds → body velocity → integrated pose (odometry)
+18. **Mobile Inverse Kinematics** — drive-to-goal control; wheel speeds from a body velocity, and the non-holonomic constraint
+19. **Motion Profiles** — trapezoidal vs cubic trajectories: how a joint actually moves over time
 
 **Localization** (Ch. 16)
 
-19. **Markov Localization** — a 1D grid (Bayes) filter: perception sharpens, action spreads, doors disambiguate
-20. **Particle Filter** — a 2D swarm localizing against landmarks by predict / weight / resample
+20. **Markov Localization** — a 1D grid (Bayes) filter: perception sharpens, action spreads, doors disambiguate
+21. **Particle Filter** — a 2D swarm localizing against landmarks by predict / weight / resample
 
 **SLAM** (Ch. 17)
 
-21. **SLAM (Loop Closure)** — odometry drifts as the robot laps a loop; revisiting a known place closes the loop and the pose-graph correction snaps both the path and the mapped landmarks back onto truth
+22. **SLAM (Loop Closure)** — odometry drifts as the robot laps a loop; revisiting a known place closes the loop and the pose-graph correction snaps both the path and the mapped landmarks back onto truth
 
 The same file, `kinematica.html`, powers both options below.
 
@@ -80,7 +81,7 @@ Notes:
 ## Controls
 
 - **3D modules** (Vectors, Dot, Cross, Frames, Rotations, DH Parameters): drag the viewport to orbit; sliders set components, angles, and joints.
-- **2D modules** (Matrices, Eigenvectors, Forward/Inverse Kinematics, Workspace, Singularities, Differential Drive, Mobile IK, Motion Profiles, Markov Localization, Particle Filter): drag the arrows, handles, IK target, or mobile-robot goal directly; sliders, presets, step buttons and play/auto toggles are available where relevant.
+- **2D modules** (Matrices, Eigenvectors, Forward/Inverse Kinematics, URDF, Workspace, Singularities, Differential Drive, Mobile IK, Motion Profiles, Markov Localization, Particle Filter): drag the arrows, handles, IK target, or mobile-robot goal directly; sliders, presets, step buttons and play/auto toggles are available where relevant.
 - Every module has a **Live Math** panel that updates in real time and a colored verdict explaining the current state.
 - Reduced-motion is respected: auto-animations default to off if your system requests it.
 
